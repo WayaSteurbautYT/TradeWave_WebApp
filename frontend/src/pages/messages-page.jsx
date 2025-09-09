@@ -400,7 +400,6 @@ export function MessagesPage() {
                   </div>
                 )
               )}
-              </div>
             </CardContent>
           </Card>
         </div>

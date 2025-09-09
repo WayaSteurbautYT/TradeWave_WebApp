@@ -86,6 +86,11 @@ async def register_user(user_data: UserCreate):
     # Create user profile
     user_profile = UserProfile(**user_data.dict())
     
+    # Auto-generate username from display name to avoid null conflicts
+    username_base = user_profile.display_name.lower().replace(" ", "_").replace("-", "_")
+    username_base = "".join(c for c in username_base if c.isalnum() or c == "_")
+    user_profile.username = f"{username_base}_{user_profile.id[:8]}"
+    
     # Give welcome tokens (1000 for new users)
     user_profile.token_balance = 1000
     

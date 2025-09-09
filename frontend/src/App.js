@@ -56,6 +56,7 @@ function AppRoutes() {
       <Route path="/search" element={<SearchPage />} />
       <Route path="/settings" element={<SettingsPage />} />
       <Route path="/tokens" element={<TokensPage />} />
+      <Route path="/orders" element={<OrdersPage />} />
     </Routes>
   );
 }

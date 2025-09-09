@@ -1400,6 +1400,9 @@ async def get_user_achievements(
     current_user: UserProfile = Depends(get_current_user_session)
 ):
     """Get user's unlocked achievements"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
     if user_id != current_user.id and current_user.role != UserRole.admin:
         raise HTTPException(status_code=403, detail="Not authorized")
     

@@ -24,6 +24,7 @@ import { SubscriptionPage } from "@/pages/subscription-page";
 import { MessagesPage } from "@/pages/messages-page";
 import { SearchPage } from "@/pages/search-page";
 import { SettingsPage } from "@/pages/settings-page";
+import { TokensPage } from "@/pages/tokens-page";
 
 function AppRoutes() {
   const location = useLocation();

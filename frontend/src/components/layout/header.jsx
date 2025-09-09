@@ -228,6 +228,12 @@ export function Header() {
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
+                          <Link to="/analytics">
+                            <TrendingUp className="mr-2 h-4 w-4" />
+                            Analytics & Insights
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
                           <Link to="/upload">
                             <Upload className="mr-2 h-4 w-4" />
                             Upload Content
@@ -235,6 +241,24 @@ export function Header() {
                         </DropdownMenuItem>
                       </>
                     )}
+                    <DropdownMenuItem asChild>
+                      <Link to="/orders">
+                        <ShoppingCart className="mr-2 h-4 w-4" />
+                        My Orders
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/achievements">
+                        <Award className="mr-2 h-4 w-4" />
+                        Achievements & Rewards
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/tokens">
+                        <Coins className="mr-2 h-4 w-4" />
+                        Token Management
+                      </Link>
+                    </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link to="/subscription">
                         <Zap className="mr-2 h-4 w-4" />

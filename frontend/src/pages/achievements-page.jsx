@@ -21,7 +21,7 @@ import {
   Lock,
   Gift,
   Sparkles,
-  Fire,
+  Flame,
   Shield
 } from "lucide-react"
 

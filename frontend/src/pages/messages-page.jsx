@@ -152,42 +152,53 @@ export function MessagesPage() {
     try {
       // Mock messages for demo - replace with API call when ready
       const mockMessages = [
-    {
-      id: "1",
-      sender: "other",
-      content: "Hi! I'm interested in your Minecraft building service. Can you create a medieval castle for my server?",
-      timestamp: "10:30 AM",
-      type: "text"
-    },
-    {
-      id: "2",
-      sender: "me",
-      content: "Absolutely! I'd be happy to help. I can create an epic medieval castle with full tutorial included. What's your budget and timeline?",
-      timestamp: "10:32 AM", 
-      type: "text"
-    },
-    {
-      id: "3",
-      sender: "other",
-      content: "Perfect! Budget is around 500 credits and I need it within a week. Can you also include the schematic files?",
-      timestamp: "10:35 AM",
-      type: "text"
-    },
-    {
-      id: "4",
-      sender: "me", 
-      content: "That works perfectly! I'll include:\n• Complete castle build\n• Step-by-step tutorial video\n• Schematic files\n• Bonus interior design tips\n\nShall we start?",
-      timestamp: "10:38 AM",
-      type: "text"
-    },
-    {
-      id: "5",
-      sender: "other",
-      content: "Amazing! Let's do it. I'm sending the order now.",
-      timestamp: "10:40 AM",
-      type: "text"
+        {
+          id: "msg1",
+          conversation_id: conversationId,
+          sender_id: conversationId === "conv1" ? "creator1" : user.id,
+          message: "Hi! I'm interested in your Minecraft building service. Can you create a medieval castle for my server?",
+          timestamp: new Date(Date.now() - 86400000).toISOString(),
+          read: true
+        },
+        {
+          id: "msg2",
+          conversation_id: conversationId,
+          sender_id: conversationId === "conv1" ? user.id : "creator1",
+          message: "Absolutely! I'd be happy to help. I can create an epic medieval castle with full tutorial included. What's your budget and timeline?",
+          timestamp: new Date(Date.now() - 82800000).toISOString(),
+          read: true
+        },
+        {
+          id: "msg3",
+          conversation_id: conversationId,
+          sender_id: conversationId === "conv1" ? "creator1" : user.id,
+          message: "Perfect! Budget is around 500 credits and I need it within a week. Can you also include the schematic files?",
+          timestamp: new Date(Date.now() - 79200000).toISOString(),
+          read: true
+        },
+        {
+          id: "msg4",
+          conversation_id: conversationId,
+          sender_id: conversationId === "conv1" ? user.id : "creator1",
+          message: "That works perfectly! I'll include:\n• Complete castle build\n• Step-by-step tutorial video\n• Schematic files\n• Bonus interior design tips\n\nShall we start?",
+          timestamp: new Date(Date.now() - 3600000).toISOString(),
+          read: true
+        },
+        {
+          id: "msg5",
+          conversation_id: conversationId,
+          sender_id: conversationId === "conv1" ? "creator1" : user.id,
+          message: "Amazing! Let's do it. I'm sending the order now.",
+          timestamp: new Date(Date.now() - 1800000).toISOString(),
+          read: false
+        }
+      ]
+      
+      setMessages(mockMessages)
+    } catch (error) {
+      console.error('Error fetching messages:', error)
     }
-  ]
+  }
 
   const sendMessage = () => {
     if (!newMessage.trim()) return

@@ -443,22 +443,23 @@ class WayaCreateAPITester:
 
     def test_create_content(self):
         """Test creating content (requires auth)"""
-        if not self.token:
-            print("⚠️ Skipping - No auth token available")
+        if not self.session_token:
+            print("⚠️ Skipping - No session token available")
             return False, {}
             
         test_data = {
-            "title": f"Test Content {datetime.now().strftime('%H%M%S')}",
-            "description": "This is a test content item",
+            "title": f"Test Gaming Tutorial {datetime.now().strftime('%H%M%S')}",
+            "description": "Complete guide to building a 2D platformer game in Unity",
             "content_type": "video",
-            "price": 100,
-            "tags": ["test", "demo"],
-            "category": "education",
-            "rights": ["view", "download"]
+            "category": "Gaming",
+            "tags": ["unity", "gamedev", "tutorial", "2d"],
+            "tutorial_url": "https://example.com/tutorial.mp4",
+            "project_files": ["https://example.com/project.zip"],
+            "status": "draft"
         }
         
         return self.run_test(
-            "Create Content",
+            "Create Content with Tutorial",
             "POST",
             "api/content",
             200,

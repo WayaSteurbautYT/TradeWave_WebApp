@@ -502,11 +502,11 @@ class WayaCreateAPITester:
             self.tests_run += 1
 
 def main():
-    print("🚀 Starting TradeWave Backend API Tests")
-    print("=" * 50)
+    print("🚀 Starting WayaCreate Comprehensive Backend API Tests")
+    print("=" * 60)
     
     # Setup
-    tester = TradeWaveAPITester()
+    tester = WayaCreateAPITester()
     
     # Test basic connectivity
     print("\n📡 Testing Basic API Connectivity...")
@@ -521,55 +521,95 @@ def main():
     health_success, _ = tester.test_health_check()
     
     # Test authentication system
-    print("\n🔐 Testing Authentication System...")
-    register_success, _ = tester.test_register_user()
+    print("\n🔐 Testing Enhanced Authentication System...")
+    auth_success, _ = tester.test_emergent_auth_login()
     
-    if register_success:
+    if auth_success:
         # Test getting current user profile
         tester.test_get_current_user()
     
-    # Test token economy
-    print("\n💰 Testing Token Economy...")
-    tester.test_token_packages()
+    # Test subscription system
+    print("\n💳 Testing Subscription System...")
+    tester.test_subscription_plans()
+    
+    # Test services & marketplace
+    print("\n🛍️ Testing Services & Marketplace System...")
+    tester.test_get_services()
+    
+    if auth_success:
+        # Test service creation (requires auth)
+        service_success, _ = tester.test_create_service()
+        if service_success:
+            tester.test_get_service_details()
+    
+    # Test enhanced order system with milestones
+    print("\n📋 Testing Enhanced Order System with Milestones...")
+    if auth_success:
+        order_success, _ = tester.test_create_order()
+        tester.test_get_user_orders()
+        if order_success:
+            tester.test_update_order_status()
+            tester.test_approve_milestone()
+    
+    # Test token economy system
+    print("\n💰 Testing Token Purchase & Withdrawal System...")
+    if auth_success:
+        tester.test_token_purchase()
+        tester.test_token_transactions()
+        tester.test_withdrawal_request()
+    
+    # Test AI-powered creator search
+    print("\n🤖 Testing AI-Powered Creator Search...")
+    tester.test_ai_creator_search()
     
     # Test content system
     print("\n📝 Testing Content System...")
     tester.test_get_content()
     
-    if register_success:
+    if auth_success:
         # Test creating content (requires auth)
         tester.test_create_content()
-    
-    # Test service marketplace
-    print("\n🛍️ Testing Service Marketplace...")
-    tester.test_get_services()
-    
-    # Test community features
-    print("\n👥 Testing Community Features...")
-    tester.test_get_community_posts()
     
     # Test CORS
     print("\n🌐 Testing CORS Configuration...")
     tester.test_cors_headers()
     
     # Print final results
-    print("\n" + "=" * 50)
-    print("📊 TEST RESULTS SUMMARY")
-    print("=" * 50)
+    print("\n" + "=" * 60)
+    print("📊 COMPREHENSIVE TEST RESULTS SUMMARY")
+    print("=" * 60)
     print(f"Tests Run: {tester.tests_run}")
     print(f"Tests Passed: {tester.tests_passed}")
     print(f"Tests Failed: {tester.tests_run - tester.tests_passed}")
+    print(f"Success Rate: {(tester.tests_passed/tester.tests_run*100):.1f}%")
     
     if tester.failed_tests:
         print("\n❌ FAILED TESTS:")
         for failed_test in tester.failed_tests:
             print(f"  - {failed_test}")
     
+    # Categorize results
+    critical_failures = [f for f in tester.failed_tests if any(keyword in f.lower() for keyword in ['auth', 'login', 'health', 'root'])]
+    business_failures = [f for f in tester.failed_tests if any(keyword in f.lower() for keyword in ['service', 'order', 'token', 'milestone'])]
+    
+    if critical_failures:
+        print(f"\n🚨 CRITICAL FAILURES ({len(critical_failures)}):")
+        for failure in critical_failures:
+            print(f"  - {failure}")
+    
+    if business_failures:
+        print(f"\n⚠️ BUSINESS FEATURE FAILURES ({len(business_failures)}):")
+        for failure in business_failures:
+            print(f"  - {failure}")
+    
     if tester.tests_passed == tester.tests_run:
-        print("\n🎉 All backend tests passed!")
+        print("\n🎉 All comprehensive backend tests passed!")
+        print("✅ WayaCreate business platform is ready for deployment!")
         return 0
     else:
         print(f"\n⚠️  {tester.tests_run - tester.tests_passed} test(s) failed")
+        if critical_failures:
+            print("🚨 Critical system components need attention before deployment")
         return 1
 
 if __name__ == "__main__":

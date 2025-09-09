@@ -26,15 +26,35 @@ from dotenv import load_dotenv
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# Configure integrations
-sentry_sdk.init(
-    dsn=os.environ.get('SENTRY_DSN'),
-    integrations=[FastApiIntegration()],
-    traces_sample_rate=1.0,
-)
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-stripe.api_key = os.environ.get('STRIPE_SECRET_KEY')
-genai.configure(api_key=os.environ.get('GOOGLE_API_KEY'))
+# Configure integrations
+sentry_dsn = os.environ.get('SENTRY_DSN')
+if sentry_dsn:
+    sentry_sdk.init(
+        dsn=sentry_dsn,
+        integrations=[FastApiIntegration()],
+        traces_sample_rate=0.1,  # Lower sample rate for production
+    )
+    logger.info("✅ Sentry configured")
+
+# Stripe configuration
+stripe_key = os.environ.get('STRIPE_SECRET_KEY')
+if stripe_key:
+    stripe.api_key = stripe_key
+    logger.info("✅ Stripe configured")
+else:
+    logger.warning("⚠️ Stripe not configured - payment features disabled")
+
+# Google AI configuration
+google_api_key = os.environ.get('GOOGLE_API_KEY')
+if google_api_key:
+    genai.configure(api_key=google_api_key)
+    logger.info("✅ Google AI configured")
+else:
+    logger.warning("⚠️ Google AI not configured - AI features disabled")
 
 # YouTube API
 youtube = build('youtube', 'v3', developerKey=os.environ.get('GOOGLE_API_KEY'))

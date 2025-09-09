@@ -360,9 +360,8 @@ class WayaCreateAPITester:
         success, response = self.run_test(
             "Purchase Token Package (Auth Required)",
             "POST",
-            "api/tokens/purchase",
+            "api/tokens/purchase?package_id=starter",
             expected_status,
-            data="starter",
             auth_required=True
         )
         

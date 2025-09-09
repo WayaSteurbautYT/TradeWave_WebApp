@@ -506,7 +506,6 @@ export function MessagesPage() {
                     })}
                     <div ref={messagesEndRef} />
                   </div>
-                  </div>
                 </CardContent>
 
                 {/* Message Input */}

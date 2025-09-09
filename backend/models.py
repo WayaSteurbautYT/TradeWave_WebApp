@@ -420,3 +420,133 @@ class Team(BaseModel):
     shared_credits: int = 0
     projects: List[str] = []  # Order IDs
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+# Platform Analytics & Live Data Tracking
+class PlatformAnalytics(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    date: datetime = Field(default_factory=datetime.utcnow)
+    total_users: int = 0
+    active_users_today: int = 0
+    total_orders: int = 0
+    orders_today: int = 0
+    total_revenue: float = 0.0  # in USD
+    revenue_today: float = 0.0
+    total_downloads: int = 0
+    downloads_today: int = 0
+    total_services: int = 0
+    active_creators: int = 0
+    platform_fees_collected: float = 0.0
+
+class UserActivity(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    activity_type: str  # login, order_created, content_downloaded, etc.
+    details: Dict[str, Any] = {}
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
+
+# Gamification System
+class Achievement(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    description: str
+    icon: str
+    criteria: Dict[str, Any]  # Requirements to unlock
+    reward_credits: int = 0
+    category: str  # sales, quality, engagement, etc.
+
+class UserAchievement(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    achievement_id: str
+    unlocked_at: datetime = Field(default_factory=datetime.utcnow)
+    notified: bool = False
+
+class UserLevel(BaseModel):
+    level: int = 1
+    xp: int = 0
+    xp_to_next: int = 100
+    title: str = "Beginner Creator"
+    badges: List[str] = []
+    tier: str = "Bronze"  # Bronze, Silver, Gold, Platinum, Diamond
+
+# Enhanced User Stats
+class UserStats(BaseModel):
+    total_orders_completed: int = 0
+    total_revenue_earned: float = 0.0
+    total_content_downloads: int = 0
+    average_rating: float = 0.0
+    response_time_hours: float = 24.0
+    completion_rate: float = 100.0
+    repeat_client_rate: float = 0.0
+    streak_days: int = 0
+    last_active: datetime = Field(default_factory=datetime.utcnow)
+
+# Live Chat System
+class ChatMessage(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    conversation_id: str
+    sender_id: str
+    recipient_id: str
+    message: str
+    message_type: str = "text"  # text, image, file, system
+    attachments: List[str] = []
+    read: bool = False
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+class Conversation(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    participants: List[str]  # User IDs
+    order_id: Optional[str] = None
+    status: str = "active"  # active, archived, blocked
+    last_message_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+# Featured Listings System
+class FeaturedListing(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    service_id: str
+    creator_id: str
+    featured_type: str  # homepage, category, search_top
+    duration_days: int
+    cost_credits: int
+    start_date: datetime = Field(default_factory=datetime.utcnow)
+    end_date: datetime
+    status: str = "active"  # active, expired, cancelled
+
+# Platform Configuration
+class PlatformConfig(BaseModel):
+    platform_fee_percentage: float = 5.0  # 5% platform fee
+    featured_listing_costs: Dict[str, int] = {
+        "homepage": 100,  # credits
+        "category": 50,
+        "search_top": 25
+    }
+    creator_tier_benefits: Dict[str, Dict[str, Any]] = {
+        "Bronze": {"max_services": 5, "featured_discount": 0},
+        "Silver": {"max_services": 15, "featured_discount": 10},
+        "Gold": {"max_services": 50, "featured_discount": 20},
+        "Platinum": {"max_services": -1, "featured_discount": 30},
+        "Diamond": {"max_services": -1, "featured_discount": 50}
+    }
+
+# Review System Enhancement
+class ReviewResponse(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    review_id: str
+    responder_id: str  # Creator responding to review
+    response: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+# Email Notification System
+class EmailNotification(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    email: str
+    subject: str
+    template: str
+    variables: Dict[str, Any] = {}
+    status: str = "pending"  # pending, sent, failed
+    sent_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)

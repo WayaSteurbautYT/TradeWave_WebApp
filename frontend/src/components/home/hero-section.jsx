@@ -150,20 +150,41 @@ export function HeroSection() {
               </Button>
             </div>
 
-            {/* Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 pt-6 md:pt-8">
+            {/* Live Stats Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
               {stats.map((stat, index) => {
                 const Icon = stat.icon
                 return (
-                  <div key={index} className="text-center">
-                    <div className="flex justify-center mb-2">
-                      <Icon className="h-5 w-5 md:h-6 md:w-6 text-primary" />
-                    </div>
-                    <div className="text-xl md:text-2xl font-bold">{stat.value}</div>
-                    <div className="text-xs md:text-sm text-muted-foreground">{stat.label}</div>
-                  </div>
+                  <Card key={index} className="gaming-card bg-background/50 backdrop-blur-sm border-primary/20 hover:scale-105 transition-transform">
+                    <CardContent className="p-4 text-center">
+                      <div className="flex items-center justify-center mb-2">
+                        <Icon className={`h-6 w-6 ${stat.color}`} />
+                        <div className="w-2 h-2 bg-green-500 rounded-full ml-2 animate-pulse" title="Live data" />
+                      </div>
+                      <div className="text-2xl md:text-3xl font-bold animate-counter">{stat.value}</div>
+                      <div className="text-xs md:text-sm text-muted-foreground">{stat.label}</div>
+                    </CardContent>
+                  </Card>
                 )
               })}
+            </div>
+
+            {/* Live Success Stories */}
+            <div className="mt-8 p-4 bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-950/20 dark:to-blue-950/20 rounded-lg border border-green-200 dark:border-green-800">
+              <div className="flex items-center space-x-2 mb-3">
+                <Award className="h-5 w-5 text-green-600" />
+                <span className="font-semibold text-green-900 dark:text-green-100">Recent Success Stories</span>
+                <Badge className="bg-green-500 text-white text-xs">LIVE</Badge>
+              </div>
+              <div className="grid md:grid-cols-3 gap-3">
+                {socialProof.success_stories.map((story, index) => (
+                  <div key={index} className="text-sm">
+                    <span className="font-medium text-green-800 dark:text-green-200">{story.user}</span>
+                    <span className="text-green-700 dark:text-green-300"> - {story.achievement}</span>
+                    <Badge variant="outline" className="ml-2 text-xs">{story.category}</Badge>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 

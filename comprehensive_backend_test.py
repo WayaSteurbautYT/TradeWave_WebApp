@@ -335,16 +335,7 @@ class WayaCreateComprehensiveAPITester:
     
     def test_send_email_notification(self):
         """Test POST /api/notifications/email - Email notification sending"""
-        notification_data = {
-            "user_id": str(uuid.uuid4()),
-            "template": "order_created",
-            "variables": {
-                "order_id": "12345",
-                "service_title": "Test Service",
-                "amount": 100
-            }
-        }
-        
+        # The endpoint expects query parameters, not JSON body
         expected_status = 401 if not self.session_token else 403  # 403 for non-admin access
         
         success, response = self.run_test(
@@ -352,7 +343,15 @@ class WayaCreateComprehensiveAPITester:
             "POST",
             "api/notifications/email",
             expected_status,
-            data=notification_data,
+            params={
+                "user_id": str(uuid.uuid4()),
+                "template": "order_created",
+                "variables": {
+                    "order_id": "12345",
+                    "service_title": "Test Service",
+                    "amount": 100
+                }
+            },
             auth_required=True
         )
         

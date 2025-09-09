@@ -188,7 +188,7 @@ class WayaCreateAPITester:
                     "name": "Basic Logo",
                     "description": "Simple logo design with 2 revisions",
                     "price": 50,
-                    "delivery_days": 3,
+                    "delivery_time": 3,
                     "revisions": 2,
                     "features": ["Logo design", "2 revisions", "High-res files"]
                 },
@@ -196,7 +196,7 @@ class WayaCreateAPITester:
                     "name": "Logo + Brand Kit",
                     "description": "Logo design with basic brand guidelines",
                     "price": 100,
-                    "delivery_days": 5,
+                    "delivery_time": 5,
                     "revisions": 3,
                     "features": ["Logo design", "Brand colors", "Typography guide", "3 revisions"]
                 },
@@ -204,7 +204,7 @@ class WayaCreateAPITester:
                     "name": "Complete Branding",
                     "description": "Full branding package with all assets",
                     "price": 200,
-                    "delivery_days": 7,
+                    "delivery_time": 7,
                     "revisions": 5,
                     "features": ["Complete brand identity", "Logo variations", "Brand guidelines", "Business cards", "5 revisions"]
                 }

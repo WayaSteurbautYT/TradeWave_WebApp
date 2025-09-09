@@ -41,8 +41,39 @@ export function MessagesPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const messagesEndRef = useRef(null)
 
-  // Mock conversations data
-  const conversations = [
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchConversations()
+    }
+  }, [isAuthenticated])
+
+  useEffect(() => {
+    if (selectedConversation) {
+      fetchMessages(selectedConversation.id)
+      // Simulate real-time updates every 3 seconds
+      const interval = setInterval(() => {
+        fetchMessages(selectedConversation.id)
+      }, 3000)
+      return () => clearInterval(interval)
+    }
+  }, [selectedConversation])
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages])
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }
+
+  const fetchConversations = async () => {
+    try {
+      const response = await axios.get(`${API}/conversations`, {
+        withCredentials: true
+      })
+      
+      // Mock conversations for demo - replace with response.data when API is ready
+      const mockConversations = [
     {
       id: "1",
       participant: {

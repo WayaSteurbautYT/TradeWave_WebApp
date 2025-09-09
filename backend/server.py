@@ -125,6 +125,10 @@ async def login_user(email: str = Form(...), password: str = Form(...)):
             bio="Gaming and tech content creator on WayaCreate! 🎮",
             skills=["Gaming", "Blender", "Video Editing", "Minecraft", "Fortnite"]
         )
+        # Auto-generate username
+        username_base = demo_user.display_name.lower().replace(" ", "_")
+        demo_user.username = f"{username_base}_{demo_user.id[:8]}"
+        
         await db.users.insert_one(demo_user.dict())
         user = demo_user.dict()
     

@@ -200,12 +200,47 @@ export function MessagesPage() {
     }
   }
 
-  const sendMessage = () => {
-    if (!newMessage.trim()) return
-    
-    // Add message logic here
-    console.log("Sending message:", newMessage)
+  const sendMessage = async () => {
+    if (!newMessage.trim() || !selectedConversation) return
+
+    const tempMessage = {
+      id: `temp_${Date.now()}`,
+      conversation_id: selectedConversation.id,
+      sender_id: user.id,
+      message: newMessage,
+      timestamp: new Date().toISOString(),
+      read: false
+    }
+
+    setMessages(prev => [...prev, tempMessage])
     setNewMessage("")
+
+    try {
+      await axios.post(`${API}/conversations/${selectedConversation.id}/messages`, {
+        message: newMessage
+      }, { withCredentials: true })
+      
+      // Refresh messages after sending
+      setTimeout(() => fetchMessages(selectedConversation.id), 500)
+    } catch (error) {
+      console.error('Error sending message:', error)
+    }
+  }
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      sendMessage()
+    }
+  }
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "online": return "bg-green-500"
+      case "away": return "bg-yellow-500"  
+      case "offline": return "bg-gray-400"
+      default: return "bg-gray-400"
+    }
   }
 
   if (!isAuthenticated) {

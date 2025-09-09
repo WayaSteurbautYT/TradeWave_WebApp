@@ -76,14 +76,23 @@ app = FastAPI(
 
 api_router = APIRouter(prefix="/api")
 
-# CORS middleware
+# Environment validation
+required_env_vars = ['MONGO_URL']
+missing_vars = [var for var in required_env_vars if not os.environ.get(var)]
+if missing_vars:
+    logger.error(f"❌ Missing required environment variables: {missing_vars}")
+    raise RuntimeError(f"Missing required environment variables: {missing_vars}")
+
+# CORS configuration
+cors_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:3000').split(',')
 app.add_middleware(
     CORSMiddleware,
+    allow_origins=cors_origins,
     allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
+logger.info(f"✅ CORS configured for origins: {cors_origins}")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

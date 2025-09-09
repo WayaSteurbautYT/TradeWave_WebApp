@@ -148,8 +148,10 @@ export function MessagesPage() {
     }
   }
 
-  // Mock messages for selected conversation
-  const messages = [
+  const fetchMessages = async (conversationId) => {
+    try {
+      // Mock messages for demo - replace with API call when ready
+      const mockMessages = [
     {
       id: "1",
       sender: "other",

@@ -64,6 +64,7 @@ function AppRoutes() {
       <Route path="/analytics" element={<AnalyticsPage />} />
       <Route path="/achievements" element={<AchievementsPage />} />
       <Route path="/bidding" element={<BiddingPage />} />
+      <Route path="/guilds" element={<GuildsPage />} />
     </Routes>
   );
 }

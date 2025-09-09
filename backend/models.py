@@ -300,3 +300,123 @@ class YouTubeImportRequest(BaseModel):
     channel_url: str
     import_types: List[str] = ["videos", "shorts", "playlists"]
     max_items: int = 50
+
+# Milestone Payment System
+class MilestoneStatus(str, Enum):
+    pending = "pending"
+    approved = "approved"
+    paid = "paid"
+    disputed = "disputed"
+
+class Milestone(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    title: str
+    description: str
+    amount: int  # in credits
+    due_date: Optional[datetime] = None
+    status: MilestoneStatus = MilestoneStatus.pending
+    delivered_files: List[str] = []
+    approval_notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class EnhancedOrder(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    client_id: str
+    creator_id: str
+    service_id: str
+    package_type: str  # basic, standard, premium
+    total_amount: int  # in credits
+    requirements: str
+    status: OrderStatus = OrderStatus.pending
+    milestones: List[Milestone] = []
+    has_milestones: bool = False
+    delivery_date: Optional[datetime] = None
+    delivered_files: List[str] = []
+    messages: List[str] = []
+    revisions_used: int = 0
+    auto_accept_days: int = 3  # Auto-accept delivery after X days
+    escrow_amount: int = 0  # Amount held in escrow
+    refund_requested: bool = False
+    refund_reason: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class OrderMessage(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    order_id: str
+    sender_id: str
+    message: str
+    files: List[str] = []
+    is_system_message: bool = False
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+# Token Economy & Withdrawal System
+class TokenTransaction(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    transaction_type: str  # purchase, withdrawal, earning, spending, refund
+    amount: int  # in credits/tokens
+    usd_amount: Optional[float] = None  # For purchases/withdrawals
+    description: str
+    stripe_payment_intent_id: Optional[str] = None
+    status: str = "completed"  # pending, completed, failed
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class WithdrawalRequest(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    amount_credits: int
+    amount_usd: float
+    payment_method: str  # stripe, paypal, bank_transfer
+    payment_details: Dict[str, str] = {}  # account details
+    status: str = "pending"  # pending, approved, processed, rejected
+    admin_notes: Optional[str] = None
+    processed_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+# Advanced Search & Matching
+class CreatorSearchFilter(BaseModel):
+    skills: Optional[List[str]] = None
+    categories: Optional[List[str]] = None
+    min_rating: Optional[float] = None
+    max_price: Optional[int] = None
+    delivery_time: Optional[int] = None  # max days
+    languages: Optional[List[str]] = None
+    location: Optional[str] = None
+    level: Optional[str] = None  # beginner, intermediate, expert
+    verified_only: bool = False
+
+# Rights Trading System
+class RightsListing(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    content_id: str
+    seller_id: str
+    rights_offered: List[ContentRights]
+    price: int  # in credits
+    terms_and_conditions: str
+    buyer_id: Optional[str] = None
+    status: str = "active"  # active, sold, cancelled
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    sold_at: Optional[datetime] = None
+
+# Progress Tracking System
+class ProjectProgress(BaseModel):
+    order_id: str
+    progress_percentage: int = 0
+    current_milestone: Optional[str] = None
+    estimated_completion: Optional[datetime] = None
+    updates: List[Dict[str, Any]] = []  # Progress updates
+    files_delivered: List[str] = []
+    last_updated: datetime = Field(default_factory=datetime.utcnow)
+
+# Team & Collaboration System
+class Team(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    description: Optional[str] = None
+    owner_id: str
+    members: List[str] = []  # User IDs
+    shared_credits: int = 0
+    projects: List[str] = []  # Order IDs
+    created_at: datetime = Field(default_factory=datetime.utcnow)

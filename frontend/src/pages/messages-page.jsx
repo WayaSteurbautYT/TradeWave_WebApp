@@ -454,44 +454,53 @@ export function MessagesPage() {
                 {/* Messages */}
                 <CardContent className="flex-1 p-4 overflow-y-auto">
                   <div className="space-y-4">
-                    {messages.map((message) => (
-                      <div
-                        key={message.id}
-                        className={`flex ${message.sender === 'me' ? 'justify-end' : 'justify-start'}`}
-                      >
-                        <div className={`max-w-[70%] ${
-                          message.sender === 'me' ? 'order-2' : 'order-1'
-                        }`}>
-                          {message.sender !== 'me' && (
-                            <div className="flex items-center space-x-2 mb-1">
-                              <Avatar className="h-6 w-6">
-                                <AvatarImage src={selectedConversation.participant.avatar} />
-                                <AvatarFallback className="text-xs bg-gradient-gaming text-white">
-                                  {selectedConversation.participant.name.charAt(0)}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span className="text-xs text-muted-foreground">
-                                {selectedConversation.participant.name}
-                              </span>
+                    {messages.map((message) => {
+                      const isOwn = message.sender_id === user.id
+                      
+                      return (
+                        <div
+                          key={message.id}
+                          className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
+                        >
+                          <div className={`max-w-[70%] ${isOwn ? 'order-2' : 'order-1'}`}>
+                            <div
+                              className={`p-3 rounded-lg ${
+                                isOwn
+                                  ? 'bg-primary text-primary-foreground ml-auto'
+                                  : 'bg-accent'
+                              }`}
+                            >
+                              <p className="text-sm whitespace-pre-wrap">{message.message}</p>
                             </div>
+                            <div className={`flex items-center space-x-1 mt-1 text-xs text-muted-foreground ${
+                              isOwn ? 'justify-end' : 'justify-start'
+                            }`}>
+                              <Clock className="h-3 w-3" />
+                              <span>
+                                {new Date(message.timestamp).toLocaleTimeString([], {
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </span>
+                              {isOwn && (
+                                <CheckCheck className={`h-3 w-3 ${message.read ? 'text-blue-500' : 'text-gray-400'}`} />
+                              )}
+                            </div>
+                          </div>
+                          
+                          {!isOwn && (
+                            <Avatar className="h-8 w-8 order-1 mr-2">
+                              <AvatarImage src={selectedConversation.other_user.avatar} />
+                              <AvatarFallback className="bg-gradient-gaming text-white text-xs">
+                                {selectedConversation.other_user.name.charAt(0)}
+                              </AvatarFallback>
+                            </Avatar>
                           )}
-                          
-                          <div className={`p-3 rounded-lg ${
-                            message.sender === 'me' 
-                              ? 'bg-primary text-primary-foreground ml-auto' 
-                              : 'bg-muted'
-                          }`}>
-                            <p className="text-sm whitespace-pre-line">{message.content}</p>
-                          </div>
-                          
-                          <div className={`text-xs text-muted-foreground mt-1 ${
-                            message.sender === 'me' ? 'text-right' : 'text-left'
-                          }`}>
-                            {message.timestamp}
-                          </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
+                    <div ref={messagesEndRef} />
+                  </div>
                   </div>
                 </CardContent>
 

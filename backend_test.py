@@ -232,15 +232,36 @@ def main():
         print("Please check if the backend service is running and accessible")
         return 1
     
-    # Test CRUD operations
-    print("\n📝 Testing CRUD Operations...")
-    create_success, status_id = tester.test_create_status_check()
+    # Test health check
+    health_success, _ = tester.test_health_check()
     
-    if create_success:
-        print(f"Created status check with ID: {status_id}")
+    # Test authentication system
+    print("\n🔐 Testing Authentication System...")
+    register_success, _ = tester.test_register_user()
     
-    # Test getting status checks
-    get_success, _ = tester.test_get_status_checks()
+    if register_success:
+        # Test getting current user profile
+        tester.test_get_current_user()
+    
+    # Test token economy
+    print("\n💰 Testing Token Economy...")
+    tester.test_token_packages()
+    
+    # Test content system
+    print("\n📝 Testing Content System...")
+    tester.test_get_content()
+    
+    if register_success:
+        # Test creating content (requires auth)
+        tester.test_create_content()
+    
+    # Test service marketplace
+    print("\n🛍️ Testing Service Marketplace...")
+    tester.test_get_services()
+    
+    # Test community features
+    print("\n👥 Testing Community Features...")
+    tester.test_get_community_posts()
     
     # Test CORS
     print("\n🌐 Testing CORS Configuration...")

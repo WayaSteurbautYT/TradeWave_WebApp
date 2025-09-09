@@ -323,63 +323,77 @@ export function MessagesPage() {
                 </div>
               ) : (
                 <div className="space-y-1">
-                  {filteredConversations.map((conversation) => (
-                  <div
-                    key={conversation.id}
-                    onClick={() => setSelectedConversation(conversation)}
-                    className={`p-4 cursor-pointer transition-colors border-b hover:bg-accent ${
-                      selectedConversation?.id === conversation.id ? 'bg-accent' : ''
-                    }`}
-                  >
-                    <div className="flex items-start space-x-3">
-                      <div className="relative">
-                        <Avatar className="h-10 w-10">
-                          <AvatarImage src={conversation.participant.avatar} />
-                          <AvatarFallback className="bg-gradient-gaming text-white">
-                            {conversation.participant.name.charAt(0)}
-                          </AvatarFallback>
-                        </Avatar>
-                        {conversation.participant.online && (
-                          <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-background" />
-                        )}
-                      </div>
-                      
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <span className="font-medium text-sm truncate">
-                            {conversation.participant.name}
-                          </span>
-                          {conversation.participant.verified && (
-                            <Badge className="text-xs bg-blue-500">✓</Badge>
-                          )}
-                          {conversation.lastMessage.unread && (
-                            <div className="w-2 h-2 bg-primary rounded-full" />
-                          )}
+                    {filteredConversations.map((conversation) => (
+                      <div
+                        key={conversation.id}
+                        onClick={() => setSelectedConversation(conversation)}
+                        className={`p-4 cursor-pointer transition-colors border-b hover:bg-accent ${
+                          selectedConversation?.id === conversation.id ? 'bg-accent' : ''
+                        }`}
+                      >
+                        <div className="flex items-start space-x-3">
+                          <div className="relative">
+                            <Avatar className="h-10 w-10">
+                              <AvatarImage src={conversation.other_user.avatar} />
+                              <AvatarFallback className="bg-gradient-gaming text-white">
+                                {conversation.other_user.name.charAt(0)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className={`absolute -bottom-1 -right-1 w-3 h-3 ${getStatusColor(conversation.other_user.status)} rounded-full border-2 border-background`} />
+                          </div>
+                          
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center space-x-2 mb-1">
+                              <span className="font-medium text-sm truncate">
+                                {conversation.other_user.name}
+                              </span>
+                              {conversation.other_user.verified && (
+                                <Badge className="text-xs bg-blue-500">✓</Badge>
+                              )}
+                              {conversation.unread_count > 0 && (
+                                <Badge className="bg-red-500 text-white text-xs">
+                                  {conversation.unread_count}
+                                </Badge>
+                              )}
+                            </div>
+                            
+                            <p className="text-xs text-muted-foreground truncate mb-1">
+                              {conversation.last_message}
+                            </p>
+                            
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(conversation.last_message_at).toLocaleTimeString([], {
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </span>
+                              <div className="flex items-center space-x-2">
+                                {conversation.order_id && (
+                                  <div className="flex items-center space-x-1">
+                                    <Briefcase className="h-3 w-3" />
+                                    <span className="text-xs">Order</span>
+                                  </div>
+                                )}
+                                <Badge 
+                                  variant="secondary" 
+                                  className={`text-xs ${
+                                    conversation.project.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                    conversation.project.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                                    'bg-yellow-100 text-yellow-800'
+                                  }`}
+                                >
+                                  {conversation.project.status}
+                                </Badge>
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                        
-                        <p className="text-xs text-muted-foreground truncate mb-1">
-                          {conversation.lastMessage.content}
-                        </p>
-                        
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground">
-                            {conversation.lastMessage.timestamp}
-                          </span>
-                          <Badge 
-                            variant="secondary" 
-                            className={`text-xs ${
-                              conversation.project.status === 'completed' ? 'bg-green-100 text-green-800' :
-                              conversation.project.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                              'bg-yellow-100 text-yellow-800'
-                            }`}
-                          >
-                            {conversation.project.status}
-                          </Badge>
-                        </div>
                       </div>
-                    </div>
+                    ))}
                   </div>
-                ))}
+                )
+              )}
               </div>
             </CardContent>
           </Card>

@@ -37,7 +37,8 @@ async def create_indexes():
     
     # User indexes
     await db.database.users.create_index("email", unique=True)
-    await db.database.users.create_index("username", unique=True, sparse=True)
+    # Remove unique constraint on username since it's optional
+    # await db.database.users.create_index("username", unique=True, sparse=True)
     await db.database.users.create_index([("role", 1), ("is_active", 1)])
     
     # Content indexes

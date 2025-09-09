@@ -92,9 +92,9 @@ export function AuthModal({ isOpen, onClose }) {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Welcome to TradeWave</DialogTitle>
+          <DialogTitle>Welcome to WayaCreate</DialogTitle>
           <DialogDescription>
-            Join the leading platform for content creators and traders
+            Join the leading platform for gaming, design & tech content creators
           </DialogDescription>
         </DialogHeader>
 

@@ -35,7 +35,6 @@ import {
   AlertCircle,
   MessageSquare,
   Briefcase,
-  Sword,
   Gem,
   Flame,
   Sparkles

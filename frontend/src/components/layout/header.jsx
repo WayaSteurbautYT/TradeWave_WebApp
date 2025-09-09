@@ -36,7 +36,8 @@ import {
   Zap,
   TrendingUp,
   Award,
-  ShoppingCart
+  ShoppingCart,
+  Gavel
 } from "lucide-react"
 import { useTheme } from "@/components/theme-provider"
 import { useAuth } from "@/contexts/AuthContext"

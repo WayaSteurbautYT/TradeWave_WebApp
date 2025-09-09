@@ -28,6 +28,7 @@ import { TokensPage } from "@/pages/tokens-page";
 import { OrdersPage } from "@/pages/orders-page";
 import { AnalyticsPage } from "@/pages/analytics-page";
 import { AchievementsPage } from "@/pages/achievements-page";
+import { BiddingPage } from "@/pages/bidding-page";
 
 function AppRoutes() {
   const location = useLocation();

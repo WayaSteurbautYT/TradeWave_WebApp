@@ -240,7 +240,7 @@ export function AchievementsPage() {
               {/* Streak */}
               <div className="text-center">
                 <div className="w-8 h-8 bg-orange-500/20 rounded-lg flex items-center justify-center mx-auto mb-3">
-                  <Fire className="h-5 w-5 text-orange-500" />
+                  <Flame className="h-5 w-5 text-orange-500" />
                 </div>
                 <div className="text-2xl font-bold mb-1">{userStats.streak_days}</div>
                 <div className="text-sm text-muted-foreground mb-3">Day Streak</div>

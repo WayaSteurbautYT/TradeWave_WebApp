@@ -390,7 +390,9 @@ class WayaCreateAPITester:
     def test_withdrawal_request(self):
         """Test token withdrawal request"""
         withdrawal_data = {
+            "user_id": "test_user_id",
             "amount_credits": 100,
+            "amount_usd": 10.0,
             "payment_method": "paypal",
             "payment_details": {"email": "test@example.com"}
         }

@@ -1599,6 +1599,225 @@ async def get_conversation_messages(
     
     return [ChatMessage(**msg) for msg in messages]
 
+# ============= EMAIL NOTIFICATION SYSTEM =============
+
+@api_router.post("/notifications/email")
+async def send_email_notification(
+    user_id: str,
+    template: str,
+    variables: Dict[str, Any] = {},
+    current_user: UserProfile = Depends(get_current_user_session)
+):
+    """Send email notification"""
+    if not current_user or current_user.role != UserRole.admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    db = get_database()
+    
+    # Get user email
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Email templates
+    templates = {
+        "order_created": {
+            "subject": "New Order Received - #{order_id}",
+            "body": "You have received a new order for {service_title}. Amount: {amount} credits."
+        },
+        "order_completed": {
+            "subject": "Order Completed - #{order_id}",
+            "body": "Congratulations! Your order has been completed. {amount} credits have been released to the creator."
+        },
+        "milestone_approved": {
+            "subject": "Milestone Approved - #{order_id}",
+            "body": "Your milestone '{milestone_title}' has been approved. {amount} credits have been released."
+        },
+        "achievement_unlocked": {
+            "subject": "Achievement Unlocked! 🏆",
+            "body": "Congratulations! You've unlocked the '{achievement_name}' achievement and earned {reward_credits} credits!"
+        },
+        "payment_received": {
+            "subject": "Payment Received",
+            "body": "You've received {amount} credits from {client_name} for order #{order_id}."
+        },
+        "withdrawal_processed": {
+            "subject": "Withdrawal Processed",
+            "body": "Your withdrawal of ${amount} has been processed and will arrive in 3-5 business days."
+        }
+    }
+    
+    template_data = templates.get(template)
+    if not template_data:
+        raise HTTPException(status_code=400, detail="Invalid template")
+    
+    # Format template with variables
+    subject = template_data["subject"].format(**variables)
+    body = template_data["body"].format(**variables)
+    
+    # Create notification record
+    notification = EmailNotification(
+        user_id=user_id,
+        email=user["email"],
+        subject=subject,
+        template=template,
+        variables=variables
+    )
+    
+    await db.email_notifications.insert_one(notification.dict())
+    
+    # In production, integrate with email service (SendGrid, etc.)
+    print(f"📧 Email notification sent to {user['email']}: {subject}")
+    
+    return {"success": True, "message": "Email notification queued"}
+
+@api_router.get("/notifications/email/{user_id}")
+async def get_user_email_notifications(
+    user_id: str,
+    current_user: UserProfile = Depends(get_current_user_session)
+):
+    """Get user's email notifications"""
+    if not current_user or (current_user.id != user_id and current_user.role != UserRole.admin):
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    db = get_database()
+    
+    notifications = await db.email_notifications.find({
+        "user_id": user_id
+    }).sort([("created_at", -1)]).limit(50).to_list(length=50)
+    
+    return [EmailNotification(**notif) for notif in notifications]
+
+# ============= ENHANCED REVIEW SYSTEM =============
+
+@api_router.post("/reviews/{review_id}/response")
+async def respond_to_review(
+    review_id: str,
+    response_text: str,
+    current_user: UserProfile = Depends(get_current_user_session)
+):
+    """Respond to a review"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    db = get_database()
+    
+    # Get the original review
+    review = await db.ratings.find_one({"id": review_id})
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found")
+    
+    # Check if user is the reviewee (can respond to reviews about them)
+    if review["reviewee_id"] != current_user.id:
+        raise HTTPException(status_code=403, detail="Can only respond to reviews about you")
+    
+    # Create response
+    response = ReviewResponse(
+        review_id=review_id,
+        responder_id=current_user.id,
+        response=response_text
+    )
+    
+    await db.review_responses.insert_one(response.dict())
+    
+    return {"success": True, "response": response.dict()}
+
+@api_router.get("/reviews/{review_id}/responses")
+async def get_review_responses(review_id: str):
+    """Get responses to a review"""
+    db = get_database()
+    
+    responses = await db.review_responses.find({
+        "review_id": review_id
+    }).sort([("created_at", 1)]).to_list(length=None)
+    
+    return [ReviewResponse(**resp) for resp in responses]
+
+# ============= PLATFORM REVENUE SHARING =============
+
+@api_router.get("/platform/revenue")
+async def get_platform_revenue(
+    current_user: UserProfile = Depends(get_current_user_session)
+):
+    """Get platform revenue statistics (admin only)"""
+    if not current_user or current_user.role != UserRole.admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    db = get_database()
+    
+    # Get platform fee transactions
+    platform_transactions = await db.token_transactions.find({
+        "transaction_type": "platform_fee"
+    }).to_list(length=None)
+    
+    total_platform_fees = sum(t.get("amount", 0) for t in platform_transactions)
+    
+    # Get revenue by category
+    completed_orders = await db.orders.find({"status": OrderStatus.completed}).to_list(length=None)
+    
+    revenue_by_category = {}
+    for order in completed_orders:
+        service = await db.services.find_one({"id": order["service_id"]})
+        if service:
+            category = service.get("category", "other")
+            revenue_by_category[category] = revenue_by_category.get(category, 0) + order.get("total_amount", 0)
+    
+    return {
+        "total_platform_fees_credits": total_platform_fees,
+        "total_platform_fees_usd": total_platform_fees * 0.10,
+        "revenue_by_category": revenue_by_category,
+        "total_orders": len(completed_orders),
+        "average_order_value": sum(o.get("total_amount", 0) for o in completed_orders) / len(completed_orders) if completed_orders else 0
+    }
+
+# ============= SOCIAL PROOF SYSTEM =============
+
+@api_router.get("/social-proof/stats")
+async def get_social_proof_stats():
+    """Get social proof statistics for homepage"""
+    db = get_database()
+    
+    total_users = await db.users.count_documents({})
+    total_creators = await db.users.count_documents({"role": {"$in": [UserRole.creator, UserRole.business]}})
+    total_orders = await db.orders.count_documents({"status": OrderStatus.completed})
+    total_reviews = await db.ratings.count_documents({})
+    
+    # Calculate average rating
+    ratings = await db.ratings.find({}).to_list(length=None)
+    avg_rating = sum(r.get("rating", 0) for r in ratings) / len(ratings) if ratings else 0
+    
+    # Get top creators
+    top_creators = await db.users.find({
+        "role": {"$in": [UserRole.creator, UserRole.business]},
+        "total_earned": {"$gt": 0}
+    }).sort([("total_earned", -1)]).limit(5).to_list(length=5)
+    
+    return {
+        "total_users": total_users,
+        "total_creators": total_creators,
+        "total_orders": total_orders,
+        "total_reviews": total_reviews,
+        "average_rating": round(avg_rating, 1),
+        "top_creators": [UserProfile(**creator) for creator in top_creators],
+        "success_stories": [
+            {
+                "user": "Alex M.",
+                "achievement": "Earned $2,500 in first month",
+                "category": "Design"
+            },
+            {
+                "user": "Sarah K.",
+                "achievement": "500+ completed orders",
+                "category": "Gaming"
+            },
+            {
+                "user": "Mike R.",
+                "achievement": "100% 5-star rating",
+                "category": "Development"
+            }
+        ]
+    }
+
 # Include all routes
 app.include_router(api_router)
 

@@ -25,7 +25,7 @@ load_dotenv(ROOT_DIR / '.env')
 # Configure Sentry
 sentry_sdk.init(
     dsn=os.environ.get('SENTRY_DSN'),
-    integrations=[FastApiIntegration(auto_enabling_integrations=False)],
+    integrations=[FastApiIntegration()],
     traces_sample_rate=1.0,
 )
 

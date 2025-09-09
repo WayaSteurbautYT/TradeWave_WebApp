@@ -6,14 +6,18 @@ import json
 class TradeWaveAPITester:
     def __init__(self, base_url="https://shadcn-integration.preview.emergentagent.com"):
         self.base_url = base_url
+        self.token = None
         self.tests_run = 0
         self.tests_passed = 0
         self.failed_tests = []
 
-    def run_test(self, name, method, endpoint, expected_status, data=None):
+    def run_test(self, name, method, endpoint, expected_status, data=None, auth_required=False):
         """Run a single API test"""
         url = f"{self.base_url}/{endpoint}"
         headers = {'Content-Type': 'application/json'}
+        
+        if auth_required and self.token:
+            headers['Authorization'] = f'Bearer {self.token}'
 
         self.tests_run += 1
         print(f"\n🔍 Testing {name}...")
@@ -24,6 +28,8 @@ class TradeWaveAPITester:
                 response = requests.get(url, headers=headers, timeout=10)
             elif method == 'POST':
                 response = requests.post(url, json=data, headers=headers, timeout=10)
+            elif method == 'PUT':
+                response = requests.put(url, json=data, headers=headers, timeout=10)
 
             print(f"Response Status: {response.status_code}")
             
@@ -33,7 +39,7 @@ class TradeWaveAPITester:
                 print(f"✅ Passed - Status: {response.status_code}")
                 try:
                     response_data = response.json()
-                    print(f"Response: {json.dumps(response_data, indent=2)}")
+                    print(f"Response: {json.dumps(response_data, indent=2)[:500]}...")
                     return True, response_data
                 except:
                     print("Response: (non-JSON)")
@@ -70,27 +76,109 @@ class TradeWaveAPITester:
             200
         )
 
-    def test_create_status_check(self):
-        """Test creating a status check"""
+    def test_health_check(self):
+        """Test the health check endpoint"""
+        return self.run_test(
+            "Health Check",
+            "GET",
+            "api/health",
+            200
+        )
+
+    def test_register_user(self):
+        """Test user registration"""
         test_data = {
-            "client_name": f"test_client_{datetime.now().strftime('%H%M%S')}"
+            "email": f"test_{datetime.now().strftime('%H%M%S')}@example.com",
+            "display_name": f"Test User {datetime.now().strftime('%H%M%S')}",
+            "role": "viewer"
         }
         success, response = self.run_test(
-            "Create Status Check",
+            "User Registration",
             "POST",
-            "api/status",
+            "api/auth/register",
             200,
             data=test_data
         )
-        return success, response.get('id') if success else None
+        
+        if success and 'access_token' in response:
+            self.token = response['access_token']
+            print(f"✅ Got access token for future tests")
+            return True, response
+        return success, response
 
-    def test_get_status_checks(self):
-        """Test getting all status checks"""
+    def test_get_current_user(self):
+        """Test getting current user profile"""
+        if not self.token:
+            print("⚠️ Skipping - No auth token available")
+            return False, {}
+            
         return self.run_test(
-            "Get Status Checks",
+            "Get Current User",
             "GET",
-            "api/status",
+            "api/auth/me",
+            200,
+            auth_required=True
+        )
+
+    def test_token_packages(self):
+        """Test getting token packages"""
+        return self.run_test(
+            "Get Token Packages",
+            "GET",
+            "api/tokens/packages",
             200
+        )
+
+    def test_get_content(self):
+        """Test getting content list"""
+        return self.run_test(
+            "Get Content List",
+            "GET",
+            "api/content",
+            200
+        )
+
+    def test_get_services(self):
+        """Test getting services list"""
+        return self.run_test(
+            "Get Services List",
+            "GET",
+            "api/services",
+            200
+        )
+
+    def test_get_community_posts(self):
+        """Test getting community posts"""
+        return self.run_test(
+            "Get Community Posts",
+            "GET",
+            "api/community/posts",
+            200
+        )
+
+    def test_create_content(self):
+        """Test creating content (requires auth)"""
+        if not self.token:
+            print("⚠️ Skipping - No auth token available")
+            return False, {}
+            
+        test_data = {
+            "title": f"Test Content {datetime.now().strftime('%H%M%S')}",
+            "description": "This is a test content item",
+            "content_type": "video",
+            "price": 100,
+            "tags": ["test", "demo"],
+            "category": "education",
+            "rights": ["view", "download"]
+        }
+        
+        return self.run_test(
+            "Create Content",
+            "POST",
+            "api/content",
+            200,
+            data=test_data,
+            auth_required=True
         )
 
     def test_cors_headers(self):

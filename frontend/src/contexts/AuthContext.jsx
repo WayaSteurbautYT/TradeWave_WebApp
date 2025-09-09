@@ -36,7 +36,7 @@ export const AuthProvider = ({ children }) => {
           const response = await axios.get(`${API}/auth/me`)
           setUser(response.data)
         } catch (error) {
-          // Token is invalid
+          console.error('Auth check failed:', error)
           logout()
         }
       }
@@ -48,9 +48,14 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const response = await axios.post(`${API}/auth/login`, {
-        email,
-        password
+      const formData = new FormData()
+      formData.append('email', email)
+      formData.append('password', password)
+      
+      const response = await axios.post(`${API}/auth/login`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
       })
       
       const { access_token, user: userData } = response.data
@@ -59,8 +64,9 @@ export const AuthProvider = ({ children }) => {
       setToken(access_token)
       setUser(userData)
       
-      return { success: true }
+      return { success: true, message: response.data.message }
     } catch (error) {
+      console.error('Login error:', error)
       return {
         success: false,
         error: error.response?.data?.detail || 'Login failed'
@@ -78,8 +84,12 @@ export const AuthProvider = ({ children }) => {
       setToken(access_token)
       setUser(newUser)
       
-      return { success: true }
+      return { 
+        success: true, 
+        message: response.data.welcome_message 
+      }
     } catch (error) {
+      console.error('Registration error:', error)
       return {
         success: false,
         error: error.response?.data?.detail || 'Registration failed'

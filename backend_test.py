@@ -461,10 +461,6 @@ class WayaCreateAPITester:
 
     def test_create_content(self):
         """Test creating content (requires auth)"""
-        if not self.session_token:
-            print("⚠️ Skipping - No session token available")
-            return False, {}
-            
         test_data = {
             "title": f"Test Gaming Tutorial {datetime.now().strftime('%H%M%S')}",
             "description": "Complete guide to building a 2D platformer game in Unity",
@@ -472,18 +468,24 @@ class WayaCreateAPITester:
             "category": "Gaming",
             "tags": ["unity", "gamedev", "tutorial", "2d"],
             "tutorial_url": "https://example.com/tutorial.mp4",
-            "project_files": ["https://example.com/project.zip"],
-            "status": "draft"
+            "project_files": ["https://example.com/project.zip"]
         }
         
-        return self.run_test(
-            "Create Content with Tutorial",
+        expected_status = 401 if not self.session_token else 200
+        
+        success, response = self.run_test(
+            "Create Content with Tutorial (Auth Required)",
             "POST",
             "api/content",
-            200,
+            expected_status,
             data=test_data,
             auth_required=True
         )
+        
+        if success and expected_status == 401:
+            print("✅ Content creation properly requires authentication")
+        
+        return success, response
 
     def test_cors_headers(self):
         """Test CORS configuration"""

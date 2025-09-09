@@ -14,15 +14,25 @@ db = Database()
 async def connect_to_mongo():
     """Create database connection"""
     mongo_url = os.environ.get('MONGO_URL')
-    db_name = os.environ.get('DB_NAME', 'tradewave')
+    if not mongo_url:
+        raise ValueError("MONGO_URL environment variable is required")
     
-    db.client = AsyncIOMotorClient(mongo_url)
-    db.database = db.client[db_name]
+    db_name = os.environ.get('DB_NAME', 'wayacreate')
     
-    # Create indexes for better performance
-    await create_indexes()
-    
-    print(f"Connected to MongoDB: {db_name}")
+    try:
+        db.client = AsyncIOMotorClient(mongo_url, serverSelectionTimeoutMS=5000)
+        db.database = db.client[db_name]
+        
+        # Test the connection
+        await db.client.admin.command('ping')
+        
+        # Create indexes for better performance
+        await create_indexes()
+        
+        print(f"✅ Connected to MongoDB: {db_name}")
+    except Exception as e:
+        print(f"❌ Failed to connect to MongoDB: {e}")
+        raise
 
 async def close_mongo_connection():
     """Close database connection"""

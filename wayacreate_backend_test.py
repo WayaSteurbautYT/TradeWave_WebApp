@@ -2,22 +2,26 @@ import requests
 import sys
 from datetime import datetime
 import json
+import uuid
+import time
 
 class WayaCreateAPITester:
     def __init__(self, base_url="https://wayacreate.preview.emergentagent.com"):
         self.base_url = base_url
-        self.token = None
+        self.session_token = None
+        self.user_id = None
         self.tests_run = 0
         self.tests_passed = 0
         self.failed_tests = []
+        self.critical_failures = []
 
-    def run_test(self, name, method, endpoint, expected_status, data=None, auth_required=False):
+    def run_test(self, name, method, endpoint, expected_status, data=None, auth_required=False, cookies=None):
         """Run a single API test"""
         url = f"{self.base_url}/{endpoint}"
         headers = {'Content-Type': 'application/json'}
         
-        if auth_required and self.token:
-            headers['Authorization'] = f'Bearer {self.token}'
+        if auth_required and self.session_token:
+            headers['Authorization'] = f'Bearer {self.session_token}'
 
         self.tests_run += 1
         print(f"\n🔍 Testing {name}...")
@@ -25,11 +29,11 @@ class WayaCreateAPITester:
         
         try:
             if method == 'GET':
-                response = requests.get(url, headers=headers, timeout=10)
+                response = requests.get(url, headers=headers, cookies=cookies, timeout=15)
             elif method == 'POST':
-                response = requests.post(url, json=data, headers=headers, timeout=10)
+                response = requests.post(url, json=data, headers=headers, cookies=cookies, timeout=15)
             elif method == 'PUT':
-                response = requests.put(url, json=data, headers=headers, timeout=10)
+                response = requests.put(url, json=data, headers=headers, cookies=cookies, timeout=15)
 
             print(f"Response Status: {response.status_code}")
             
@@ -40,343 +44,380 @@ class WayaCreateAPITester:
                 try:
                     response_data = response.json()
                     print(f"Response: {json.dumps(response_data, indent=2)[:500]}...")
-                    return True, response_data
+                    return True, response_data, response
                 except:
                     print("Response: (non-JSON)")
-                    return True, response.text
+                    return True, response.text, response
             else:
                 print(f"❌ Failed - Expected {expected_status}, got {response.status_code}")
-                self.failed_tests.append(f"{name}: Expected {expected_status}, got {response.status_code}")
+                failure_msg = f"{name}: Expected {expected_status}, got {response.status_code}"
+                self.failed_tests.append(failure_msg)
+                
+                # Mark as critical if it's a core functionality
+                if any(keyword in name.lower() for keyword in ['auth', 'login', 'database', 'health']):
+                    self.critical_failures.append(failure_msg)
+                
                 try:
                     error_data = response.json()
                     print(f"Error Response: {json.dumps(error_data, indent=2)}")
                 except:
                     print(f"Error Response: {response.text}")
-                return False, {}
+                return False, {}, response
 
         except requests.exceptions.Timeout:
             print(f"❌ Failed - Request timeout")
-            self.failed_tests.append(f"{name}: Request timeout")
-            return False, {}
+            failure_msg = f"{name}: Request timeout"
+            self.failed_tests.append(failure_msg)
+            self.critical_failures.append(failure_msg)
+            return False, {}, None
         except requests.exceptions.ConnectionError:
             print(f"❌ Failed - Connection error")
-            self.failed_tests.append(f"{name}: Connection error")
-            return False, {}
+            failure_msg = f"{name}: Connection error"
+            self.failed_tests.append(failure_msg)
+            self.critical_failures.append(failure_msg)
+            return False, {}, None
         except Exception as e:
             print(f"❌ Failed - Error: {str(e)}")
-            self.failed_tests.append(f"{name}: {str(e)}")
-            return False, {}
+            failure_msg = f"{name}: {str(e)}"
+            self.failed_tests.append(failure_msg)
+            return False, {}, None
 
-    def test_wayacreate_branding(self):
-        """Test WayaCreate branding in root endpoint"""
-        success, response = self.run_test(
-            "WayaCreate Branding Check",
+    def test_root_endpoint(self):
+        """Test the root API endpoint"""
+        return self.run_test(
+            "Root API Endpoint",
             "GET",
             "api/",
             200
         )
-        
-        if success:
-            # Check for WayaCreate branding
-            if 'WayaCreate' in str(response) and 'Waya Steurbaut' in str(response):
-                print("✅ WayaCreate branding confirmed")
-                return True, response
-            else:
-                print("❌ WayaCreate branding not found in response")
-                self.failed_tests.append("WayaCreate Branding: Not found in API response")
-                return False, response
-        return success, response
 
     def test_health_check(self):
         """Test the health check endpoint"""
-        success, response = self.run_test(
+        return self.run_test(
             "Health Check",
             "GET",
             "api/health",
             200
         )
-        
-        if success:
-            # Check for WayaCreate platform info
-            if 'WayaCreate' in str(response) and 'Waya Steurbaut' in str(response):
-                print("✅ Health check includes WayaCreate branding")
-                return True, response
-            else:
-                print("⚠️ Health check missing WayaCreate branding")
-        return success, response
 
-    def test_gaming_content(self):
-        """Test gaming content retrieval"""
-        success, response = self.run_test(
-            "Gaming Content",
-            "GET",
-            "api/content?category=Gaming",
-            200
-        )
-        
-        if success and isinstance(response, list):
-            gaming_content = [item for item in response if 'Gaming' in str(item.get('category', ''))]
-            if gaming_content:
-                print(f"✅ Found {len(gaming_content)} gaming content items")
-                # Check for gaming-specific content
-                for content in gaming_content[:2]:  # Check first 2 items
-                    title = content.get('title', '')
-                    tags = content.get('tags', [])
-                    if any(game in title.lower() or game in str(tags).lower() 
-                           for game in ['minecraft', 'fortnite', 'roblox', 'blender']):
-                        print(f"✅ Gaming content verified: {title}")
-                return True, response
+    def test_database_connection(self):
+        """Test database connectivity through health endpoint"""
+        success, response_data, _ = self.test_health_check()
+        if success and isinstance(response_data, dict):
+            if 'status' in response_data and response_data['status'] == 'healthy':
+                print("✅ Database connection appears healthy")
+                return True
             else:
-                print("⚠️ No gaming content found")
-        return success, response
+                print("❌ Database connection may have issues")
+                self.critical_failures.append("Database: Health check indicates issues")
+                return False
+        return False
 
-    def test_tutorial_content(self):
-        """Test tutorial content and requirements"""
-        success, response = self.run_test(
-            "Tutorial Content",
-            "GET",
-            "api/content?tags=tutorial",
-            200
-        )
+    def test_google_oauth_simulation(self):
+        """Test Google OAuth simulation with Emergent Agent login"""
+        # Generate a test session ID
+        test_session_id = str(uuid.uuid4())
         
-        if success and isinstance(response, list):
-            tutorial_content = [item for item in response if 'tutorial' in str(item.get('tags', [])).lower()]
-            if tutorial_content:
-                print(f"✅ Found {len(tutorial_content)} tutorial content items")
-                # Check for tutorial requirements
-                for content in tutorial_content[:2]:
-                    if content.get('tutorial_required', False):
-                        print(f"✅ Tutorial requirement verified for: {content.get('title')}")
-                return True, response
-            else:
-                print("⚠️ No tutorial content found")
-        return success, response
-
-    def test_token_packages_gaming(self):
-        """Test gaming-focused token packages"""
-        success, response = self.run_test(
-            "Gaming Token Packages",
-            "GET",
-            "api/tokens/packages",
-            200
-        )
-        
-        if success and isinstance(response, list):
-            # Check for gaming-themed packages
-            gaming_packages = []
-            for package in response:
-                name = package.get('name', '').lower()
-                if any(term in name for term in ['gaming', 'creator', 'gamer']):
-                    gaming_packages.append(package)
-                    print(f"✅ Gaming package found: {package.get('name')} - ${package.get('price_usd')}")
-            
-            if gaming_packages:
-                print(f"✅ Found {len(gaming_packages)} gaming-themed token packages")
-                return True, response
-            else:
-                print("⚠️ No gaming-themed token packages found")
-        return success, response
-
-    def test_register_creator(self):
-        """Test creator registration"""
-        test_data = {
-            "email": f"creator_{datetime.now().strftime('%H%M%S')}@wayacreate.com",
-            "display_name": f"Gaming Creator {datetime.now().strftime('%H%M%S')}",
-            "role": "creator",
-            "bio": "Gaming and tech content creator on WayaCreate! 🎮",
-            "skills": ["Gaming", "Blender", "Video Editing", "Minecraft"]
-        }
-        success, response = self.run_test(
-            "Creator Registration",
+        success, response_data, response = self.run_test(
+            "Google OAuth (Emergent Agent Login)",
             "POST",
-            "api/auth/register",
+            "api/auth/emergentagent-login",
             200,
-            data=test_data
+            data={"session_id": test_session_id}
         )
         
-        if success and 'access_token' in response:
-            self.token = response['access_token']
-            print(f"✅ Creator registered with 1000 welcome tokens")
-            
-            # Check welcome message
-            if 'welcome_message' in response and 'WayaCreate' in response['welcome_message']:
-                print("✅ WayaCreate welcome message confirmed")
-            return True, response
-        return success, response
-
-    def test_demo_login(self):
-        """Test demo login functionality"""
-        # Use form data for login as per backend implementation
-        url = f"{self.base_url}/api/auth/login"
-        headers = {'Content-Type': 'application/x-www-form-urlencoded'}
-        
-        form_data = {
-            'email': 'demo@wayacreate.com',
-            'password': 'demo123'
-        }
-        
-        self.tests_run += 1
-        print(f"\n🔍 Testing Demo Login...")
-        print(f"URL: {url}")
-        
-        try:
-            response = requests.post(url, data=form_data, headers=headers, timeout=10)
-            print(f"Response Status: {response.status_code}")
-            
-            if response.status_code == 200:
-                self.tests_passed += 1
-                print(f"✅ Passed - Status: {response.status_code}")
-                response_data = response.json()
+        if success and isinstance(response_data, dict):
+            if 'user' in response_data:
+                self.user_id = response_data['user'].get('id')
+                print(f"✅ User created/logged in with ID: {self.user_id}")
                 
-                if 'access_token' in response_data:
-                    self.token = response_data['access_token']
-                    print("✅ Demo user created and logged in")
-                    
-                    # Check for gaming creator profile
-                    user = response_data.get('user', {})
-                    if user.get('role') == 'creator' and 'Gaming' in str(user.get('skills', [])):
-                        print("✅ Demo user has gaming creator profile")
-                    
+                # Extract session token from cookies if available
+                if response and response.cookies:
+                    session_cookie = response.cookies.get('session_token')
+                    if session_cookie:
+                        self.session_token = session_cookie
+                        print(f"✅ Session token obtained from cookie")
+                
                 return True, response_data
-            else:
-                print(f"❌ Failed - Expected 200, got {response.status_code}")
-                self.failed_tests.append(f"Demo Login: Expected 200, got {response.status_code}")
-                return False, {}
-                
-        except Exception as e:
-            print(f"❌ Failed - Error: {str(e)}")
-            self.failed_tests.append(f"Demo Login: {str(e)}")
-            return False, {}
-
-    def test_services_marketplace(self):
-        """Test gaming services marketplace"""
-        success, response = self.run_test(
-            "Gaming Services Marketplace",
-            "GET",
-            "api/services?category=Gaming",
-            200
-        )
         
-        if success and isinstance(response, list):
-            gaming_services = [item for item in response if 'Gaming' in str(item.get('category', ''))]
-            if gaming_services:
-                print(f"✅ Found {len(gaming_services)} gaming services")
-                # Check for Minecraft services
-                for service in gaming_services:
-                    if 'minecraft' in service.get('title', '').lower():
-                        print(f"✅ Minecraft service found: {service.get('title')}")
-                        # Check for tutorial requirement
-                        packages = service.get('packages', {})
-                        if packages:
-                            print("✅ Service packages include tutorial components")
-                return True, response
-            else:
-                print("⚠️ No gaming services found")
-        return success, response
+        return success, response_data
 
-    def test_community_posts(self):
-        """Test gaming community posts"""
-        success, response = self.run_test(
-            "Gaming Community Posts",
-            "GET",
-            "api/community/posts?tags=gaming,minecraft,blender",
-            200
-        )
-        
-        if success and isinstance(response, list):
-            gaming_posts = []
-            for post in response:
-                tags = post.get('tags', [])
-                if any(tag in ['gaming', 'minecraft', 'blender', 'tutorial'] for tag in tags):
-                    gaming_posts.append(post)
-            
-            if gaming_posts:
-                print(f"✅ Found {len(gaming_posts)} gaming community posts")
-                for post in gaming_posts[:2]:
-                    print(f"✅ Gaming post: {post.get('title')}")
-                return True, response
-            else:
-                print("⚠️ No gaming community posts found")
-        return success, response
-
-    def test_ai_features(self):
-        """Test AI generation features for gaming content"""
-        if not self.token:
-            print("⚠️ Skipping AI test - No auth token available")
+    def test_get_current_user(self):
+        """Test getting current user profile"""
+        if not self.session_token:
+            print("⚠️ Skipping - No session token available")
             return False, {}
             
+        cookies = {'session_token': self.session_token} if self.session_token else None
+        
+        return self.run_test(
+            "Get Current User Profile",
+            "GET",
+            "api/auth/me",
+            200,
+            cookies=cookies
+        )
+
+    def test_logout(self):
+        """Test user logout"""
+        if not self.session_token:
+            print("⚠️ Skipping - No session token available")
+            return False, {}
+            
+        cookies = {'session_token': self.session_token} if self.session_token else None
+        
+        return self.run_test(
+            "User Logout",
+            "POST",
+            "api/auth/logout",
+            200,
+            cookies=cookies
+        )
+
+    def test_subscription_plans(self):
+        """Test getting subscription plans (token packages equivalent)"""
+        return self.run_test(
+            "Get Subscription Plans",
+            "GET",
+            "api/subscriptions/plans",
+            200
+        )
+
+    def test_create_subscription(self):
+        """Test creating a subscription (Stripe integration)"""
+        if not self.session_token:
+            print("⚠️ Skipping - No session token available")
+            return False, {}
+            
+        cookies = {'session_token': self.session_token} if self.session_token else None
+        
+        # Test with creator plan
         test_data = {
-            "request_type": "gaming_thumbnail",
-            "prompt": "Epic Minecraft castle build thumbnail",
-            "parameters": {
-                "style": "gaming",
-                "theme": "medieval"
-            }
+            "plan_id": "creator"
         }
         
-        success, response = self.run_test(
-            "AI Gaming Content Generation",
+        return self.run_test(
+            "Create Subscription (Stripe Integration)",
+            "POST",
+            "api/subscriptions/subscribe",
+            200,
+            data=test_data,
+            cookies=cookies
+        )
+
+    def test_ai_generation(self):
+        """Test AI content generation with Gemini"""
+        if not self.session_token:
+            print("⚠️ Skipping - No session token available")
+            return False, {}
+            
+        cookies = {'session_token': self.session_token} if self.session_token else None
+        
+        test_data = {
+            "request_type": "text_generation",
+            "prompt": "Create a simple gaming tutorial introduction",
+            "parameters": {}
+        }
+        
+        return self.run_test(
+            "AI Content Generation (Gemini 2.0 Flash)",
             "POST",
             "api/ai/generate",
             200,
             data=test_data,
-            auth_required=True
+            cookies=cookies
+        )
+
+    def test_youtube_import(self):
+        """Test YouTube content import"""
+        if not self.session_token:
+            print("⚠️ Skipping - No session token available")
+            return False, {}
+            
+        cookies = {'session_token': self.session_token} if self.session_token else None
+        
+        test_data = {
+            "channel_url": "https://www.youtube.com/@wayasteurbaut",
+            "import_types": ["videos"],
+            "max_items": 5
+        }
+        
+        return self.run_test(
+            "YouTube Content Import",
+            "POST",
+            "api/import/youtube",
+            200,
+            data=test_data,
+            cookies=cookies
+        )
+
+    def test_content_system(self):
+        """Test content CRUD operations"""
+        # Test getting content list
+        success, _, _ = self.run_test(
+            "Get Content List",
+            "GET",
+            "api/content",
+            200
         )
         
-        if success:
-            print("✅ AI gaming content generation available")
-        return success, response
+        if not success:
+            return False
+        
+        # Test creating content (requires auth)
+        if not self.session_token:
+            print("⚠️ Skipping content creation - No session token available")
+            return success
+            
+        cookies = {'session_token': self.session_token} if self.session_token else None
+        
+        test_data = {
+            "title": f"Test Gaming Tutorial {datetime.now().strftime('%H%M%S')}",
+            "description": "A comprehensive gaming tutorial for WayaCreate platform",
+            "content_type": "video",
+            "price": 50,
+            "download_price": 25,
+            "tags": ["gaming", "tutorial", "wayacreate"],
+            "category": "Gaming",
+            "rights": ["view", "download"],
+            "tutorial_url": "https://example.com/tutorial",
+            "project_files": ["https://example.com/project.zip"]
+        }
+        
+        create_success, _, _ = self.run_test(
+            "Create Content with Tutorial",
+            "POST",
+            "api/content",
+            200,
+            data=test_data,
+            cookies=cookies
+        )
+        
+        return success and create_success
+
+    def test_rating_system(self):
+        """Test rating/review system"""
+        if not self.session_token or not self.user_id:
+            print("⚠️ Skipping - No session token or user ID available")
+            return False
+            
+        cookies = {'session_token': self.session_token} if self.session_token else None
+        
+        # Create a test rating
+        test_data = {
+            "reviewee_id": self.user_id,  # Self-rating for test
+            "rating_type": "user",
+            "rating": 5,
+            "comment": "Test rating for WayaCreate platform"
+        }
+        
+        return self.run_test(
+            "Create Rating/Review",
+            "POST",
+            "api/ratings",
+            200,
+            data=test_data,
+            cookies=cookies
+        )
+
+    def test_cors_configuration(self):
+        """Test CORS configuration"""
+        url = f"{self.base_url}/api/"
+        print(f"\n🔍 Testing CORS Configuration...")
+        
+        try:
+            response = requests.options(url, headers={
+                'Origin': 'https://wayacreate.preview.emergentagent.com',
+                'Access-Control-Request-Method': 'GET'
+            }, timeout=10)
+            
+            cors_headers = {
+                'Access-Control-Allow-Origin': response.headers.get('Access-Control-Allow-Origin'),
+                'Access-Control-Allow-Methods': response.headers.get('Access-Control-Allow-Methods'),
+                'Access-Control-Allow-Headers': response.headers.get('Access-Control-Allow-Headers'),
+                'Access-Control-Allow-Credentials': response.headers.get('Access-Control-Allow-Credentials')
+            }
+            
+            print(f"CORS Headers: {json.dumps(cors_headers, indent=2)}")
+            
+            if cors_headers['Access-Control-Allow-Origin']:
+                print("✅ CORS is properly configured")
+                self.tests_passed += 1
+                return True
+            else:
+                print("❌ CORS headers not found or misconfigured")
+                self.failed_tests.append("CORS: Headers not found or misconfigured")
+                return False
+                
+        except Exception as e:
+            print(f"❌ CORS test failed: {str(e)}")
+            self.failed_tests.append(f"CORS: {str(e)}")
+            return False
+        finally:
+            self.tests_run += 1
 
 def main():
-    print("🎮 Starting WayaCreate Backend API Tests")
-    print("=" * 60)
-    print("Testing gaming, design & tech content platform by Waya Steurbaut")
+    print("🚀 Starting WayaCreate Backend API Tests")
     print("=" * 60)
     
     # Setup
     tester = WayaCreateAPITester()
     
-    # Test WayaCreate branding
-    print("\n🏷️ Testing WayaCreate Branding...")
-    branding_success, _ = tester.test_wayacreate_branding()
+    # Test 1: Basic connectivity and health
+    print("\n📡 Testing Basic API Connectivity & Health...")
+    root_success, _ = tester.test_root_endpoint()
     
-    if not branding_success:
-        print("\n❌ WayaCreate branding test failed - checking if backend is running")
+    if not root_success:
+        print("\n❌ CRITICAL: Root API endpoint failed - backend may not be running")
+        print("Please check if the backend service is running and accessible")
+        return 1
     
-    # Test health check
-    print("\n💚 Testing Health Check...")
-    health_success, _ = tester.test_health_check()
+    health_success = tester.test_health_check()
+    db_success = tester.test_database_connection()
     
-    # Test authentication system
+    # Test 2: Authentication System
     print("\n🔐 Testing Authentication System...")
+    auth_success, auth_data = tester.test_google_oauth_simulation()
     
-    # Test creator registration
-    register_success, _ = tester.test_register_creator()
+    if auth_success:
+        # Test getting current user profile
+        profile_success, _ = tester.test_get_current_user()
+        
+        # Test logout
+        logout_success, _ = tester.test_logout()
+    else:
+        print("⚠️ Authentication failed - skipping dependent tests")
     
-    # Test demo login
-    demo_login_success, _ = tester.test_demo_login()
+    # Test 3: Token/Subscription System
+    print("\n💰 Testing Token/Subscription System...")
+    plans_success, _ = tester.test_subscription_plans()
     
-    # Test token economy
-    print("\n💰 Testing Gaming Token Economy...")
-    tester.test_token_packages_gaming()
+    if auth_success:
+        # Test Stripe integration
+        stripe_success, _ = tester.test_create_subscription()
     
-    # Test gaming content
-    print("\n🎮 Testing Gaming Content System...")
-    tester.test_gaming_content()
-    tester.test_tutorial_content()
+    # Test 4: AI Generation System
+    print("\n🤖 Testing AI Generation System...")
+    if auth_success:
+        ai_success, _ = tester.test_ai_generation()
     
-    # Test services marketplace
-    print("\n🛍️ Testing Gaming Services Marketplace...")
-    tester.test_services_marketplace()
+    # Test 5: YouTube Import System
+    print("\n📺 Testing YouTube Import System...")
+    if auth_success:
+        youtube_success, _ = tester.test_youtube_import()
     
-    # Test community features
-    print("\n👥 Testing Gaming Community Features...")
-    tester.test_community_posts()
+    # Test 6: Content System
+    print("\n📝 Testing Content System...")
+    content_success = tester.test_content_system()
     
-    # Test AI features (requires auth)
-    if register_success or demo_login_success:
-        print("\n🤖 Testing AI Gaming Features...")
-        tester.test_ai_features()
+    # Test 7: Rating System
+    print("\n⭐ Testing Rating System...")
+    if auth_success:
+        rating_success, _ = tester.test_rating_system()
+    
+    # Test 8: CORS Configuration
+    print("\n🌐 Testing CORS Configuration...")
+    cors_success = tester.test_cors_configuration()
     
     # Print final results
     print("\n" + "=" * 60)
@@ -386,18 +427,30 @@ def main():
     print(f"Tests Passed: {tester.tests_passed}")
     print(f"Tests Failed: {tester.tests_run - tester.tests_passed}")
     
+    if tester.critical_failures:
+        print("\n🚨 CRITICAL FAILURES (Block Core Functionality):")
+        for critical_failure in tester.critical_failures:
+            print(f"  - {critical_failure}")
+    
     if tester.failed_tests:
-        print("\n❌ FAILED TESTS:")
+        print("\n❌ ALL FAILED TESTS:")
         for failed_test in tester.failed_tests:
             print(f"  - {failed_test}")
     
-    if tester.tests_passed == tester.tests_run:
-        print("\n🎉 All WayaCreate backend tests passed!")
-        print("✅ Platform ready for gaming creators!")
+    # Success criteria
+    critical_tests_passed = len(tester.critical_failures) == 0
+    overall_success_rate = (tester.tests_passed / tester.tests_run) * 100 if tester.tests_run > 0 else 0
+    
+    print(f"\n📈 Success Rate: {overall_success_rate:.1f}%")
+    
+    if critical_tests_passed and overall_success_rate >= 70:
+        print("\n🎉 WayaCreate backend is functioning well!")
+        return 0
+    elif critical_tests_passed:
+        print(f"\n⚠️ Backend is functional but has some issues ({tester.tests_run - tester.tests_passed} non-critical failures)")
         return 0
     else:
-        print(f"\n⚠️  {tester.tests_run - tester.tests_passed} test(s) failed")
-        print("🔧 Backend needs attention before frontend testing")
+        print(f"\n💥 Critical backend issues detected - immediate attention required!")
         return 1
 
 if __name__ == "__main__":

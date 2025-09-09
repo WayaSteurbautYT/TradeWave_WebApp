@@ -236,9 +236,7 @@ metadata:
   run_ui: true
 
 test_plan:
-  current_focus:
-    - "Profile page with token balance display"
-    - "All core pages (hire, subscription, messages, settings, etc.)"
+  current_focus: []
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"

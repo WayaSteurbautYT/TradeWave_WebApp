@@ -176,8 +176,7 @@ class WayaCreateAPITester:
     def test_create_service(self):
         """Test creating a new service"""
         if not self.session_token:
-            print("⚠️ Skipping - No session token available")
-            return False, {}
+            print("⚠️ Testing service creation endpoint without auth (expects 401)")
             
         test_service = {
             "title": f"Test Design Service {datetime.now().strftime('%H%M%S')}",
@@ -210,20 +209,23 @@ class WayaCreateAPITester:
                     "features": ["Complete brand identity", "Logo variations", "Brand guidelines", "Business cards", "5 revisions"]
                 }
             },
-            "gallery_images": ["https://example.com/portfolio1.jpg"],
-            "requirements": ["Business description", "Target audience", "Style preferences"]
+            "gallery_images": ["https://example.com/portfolio1.jpg"]
         }
         
+        expected_status = 401 if not self.session_token else 200
+        
         success, response = self.run_test(
-            "Create New Service",
+            "Create New Service (Auth Required)",
             "POST",
             "api/services",
-            200,
+            expected_status,
             data=test_service,
             auth_required=True
         )
         
-        if success and response.get('id'):
+        if success and expected_status == 401:
+            print("✅ Service creation properly requires authentication")
+        elif success and response.get('id'):
             self.created_service_id = response['id']
             print(f"✅ Created service with ID: {self.created_service_id}")
         

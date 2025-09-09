@@ -1176,7 +1176,7 @@ async def track_user_activity(
 ):
     """Track user activity for analytics"""
     if not current_user:
-        return {"success": False}
+        raise HTTPException(status_code=401, detail="Not authenticated")
     
     db = get_database()
     

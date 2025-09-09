@@ -1821,6 +1821,443 @@ async def get_social_proof_stats():
         ]
     }
 
+# ============= SMART BIDDING SYSTEM =============
+
+@api_router.post("/projects/bidding", response_model=BiddingProject)
+async def create_bidding_project(
+    project_data: dict,
+    current_user: UserProfile = Depends(get_current_user_session)
+):
+    """Create a new bidding project"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    db = get_database()
+    
+    # Validate budget
+    budget_min = project_data.get("budget_min", 50)
+    budget_max = project_data.get("budget_max", 5000)
+    
+    if budget_min > budget_max:
+        raise HTTPException(status_code=400, detail="Minimum budget cannot be higher than maximum budget")
+    
+    # Create project
+    project = BiddingProject(
+        client_id=current_user.id,
+        title=project_data["title"],
+        description=project_data["description"],
+        category=project_data.get("category", "general"),
+        required_skills=project_data.get("required_skills", []),
+        budget_min=budget_min,
+        budget_max=budget_max,
+        deadline=datetime.fromisoformat(project_data["deadline"]),
+        bid_deadline=datetime.fromisoformat(project_data.get("bid_deadline", project_data["deadline"])),
+        requirements=project_data.get("requirements", {}),
+        tags=project_data.get("tags", []),
+        min_creator_level=project_data.get("min_creator_level", 1),
+        min_rating=project_data.get("min_rating", 0.0)
+    )
+    
+    await db.bidding_projects.insert_one(project.dict())
+    
+    # Track activity
+    activity = UserActivity(
+        user_id=current_user.id,
+        activity_type="project_created",
+        details={"project_id": project.id, "project_type": "bidding"}
+    )
+    await db.user_activity.insert_one(activity.dict())
+    
+    return project
+
+@api_router.get("/projects/bidding", response_model=List[BiddingProject])
+async def get_bidding_projects(
+    category: Optional[str] = None,
+    min_budget: Optional[int] = None,
+    max_budget: Optional[int] = None,
+    skills: Optional[str] = None,
+    status: str = "open",
+    page: int = 1,
+    limit: int = 20
+):
+    """Get bidding projects with filtering"""
+    db = get_database()
+    
+    query = {"status": status}
+    
+    if category:
+        query["category"] = category
+    if min_budget:
+        query["budget_min"] = {"$gte": min_budget}
+    if max_budget:
+        query["budget_max"] = {"$lte": max_budget}
+    if skills:
+        skill_list = skills.split(",")
+        query["required_skills"] = {"$in": skill_list}
+    
+    skip = (page - 1) * limit
+    cursor = db.bidding_projects.find(query).sort([("created_at", -1)]).skip(skip).limit(limit)
+    projects = await cursor.to_list(length=limit)
+    
+    return [BiddingProject(**project) for project in projects]
+
+@api_router.post("/projects/{project_id}/bids", response_model=Bid)
+async def submit_bid(
+    project_id: str,
+    bid_data: dict,
+    current_user: UserProfile = Depends(get_current_user_session)
+):
+    """Submit a bid on a project"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    if current_user.role == UserRole.viewer:
+        raise HTTPException(status_code=403, detail="Only creators can submit bids")
+    
+    db = get_database()
+    
+    # Get project
+    project = await db.bidding_projects.find_one({"id": project_id})
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    if project["status"] != ProjectStatus.open:
+        raise HTTPException(status_code=400, detail="Project is not open for bidding")
+    
+    if project["client_id"] == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot bid on your own project")
+    
+    # Check if user already has a bid
+    existing_bid = await db.bids.find_one({"project_id": project_id, "creator_id": current_user.id})
+    if existing_bid:
+        raise HTTPException(status_code=400, detail="You already have a bid on this project")
+    
+    # Validate bid amount
+    bid_amount = bid_data["amount"]
+    if project.get("budget_min") and bid_amount < project["budget_min"]:
+        raise HTTPException(status_code=400, detail="Bid amount is below minimum budget")
+    if project.get("budget_max") and bid_amount > project["budget_max"]:
+        raise HTTPException(status_code=400, detail="Bid amount exceeds maximum budget")
+    
+    # Create bid
+    bid = Bid(
+        project_id=project_id,
+        creator_id=current_user.id,
+        amount=bid_amount,
+        delivery_time=bid_data["delivery_time"],
+        proposal=bid_data["proposal"],
+        milestones=bid_data.get("milestones", []),
+        extras=bid_data.get("extras", []),
+        questions=bid_data.get("questions", []),
+        portfolio_items=bid_data.get("portfolio_items", [])
+    )
+    
+    await db.bids.insert_one(bid.dict())
+    
+    # Update project bid count
+    await db.bidding_projects.update_one(
+        {"id": project_id},
+        {"$inc": {"current_bid_count": 1}}
+    )
+    
+    # Track activity
+    activity = UserActivity(
+        user_id=current_user.id,
+        activity_type="bid_submitted",
+        details={"project_id": project_id, "bid_amount": bid_amount}
+    )
+    await db.user_activity.insert_one(activity.dict())
+    
+    return bid
+
+@api_router.get("/projects/{project_id}/bids", response_model=List[Bid])
+async def get_project_bids(
+    project_id: str,
+    current_user: UserProfile = Depends(get_current_user_session)
+):
+    """Get bids for a project (only project owner can see all bids)"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    db = get_database()
+    
+    # Get project to check ownership
+    project = await db.bidding_projects.find_one({"id": project_id})
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    # Only project owner can see all bids
+    if project["client_id"] != current_user.id:
+        # Creators can only see their own bid
+        bids = await db.bids.find({"project_id": project_id, "creator_id": current_user.id}).to_list(length=None)
+    else:
+        # Project owner sees all bids
+        bids = await db.bids.find({"project_id": project_id}).sort([("amount", 1)]).to_list(length=None)
+    
+    return [Bid(**bid) for bid in bids]
+
+@api_router.post("/projects/{project_id}/bids/{bid_id}/accept")
+async def accept_bid(
+    project_id: str,
+    bid_id: str,
+    current_user: UserProfile = Depends(get_current_user_session)
+):
+    """Accept a bid and create an order"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    db = get_database()
+    
+    # Get project
+    project = await db.bidding_projects.find_one({"id": project_id})
+    if not project or project["client_id"] != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    # Get bid
+    bid = await db.bids.find_one({"id": bid_id, "project_id": project_id})
+    if not bid:
+        raise HTTPException(status_code=404, detail="Bid not found")
+    
+    # Check credits
+    if current_user.subscription.credits_remaining < bid["amount"]:
+        raise HTTPException(status_code=400, detail="Insufficient credits")
+    
+    # Update bid status
+    await db.bids.update_one({"id": bid_id}, {"$set": {"status": BidStatus.accepted}})
+    
+    # Reject other bids
+    await db.bids.update_many(
+        {"project_id": project_id, "id": {"$ne": bid_id}},
+        {"$set": {"status": BidStatus.rejected}}
+    )
+    
+    # Update project
+    await db.bidding_projects.update_one(
+        {"id": project_id},
+        {"$set": {
+            "status": ProjectStatus.in_progress,
+            "winning_bid_id": bid_id,
+            "selected_creator_id": bid["creator_id"]
+        }}
+    )
+    
+    # Create order
+    order = EnhancedOrder(
+        client_id=current_user.id,
+        creator_id=bid["creator_id"],
+        service_id=project_id,  # Use project as service reference
+        package_type="custom",
+        total_amount=bid["amount"],
+        requirements=bid["proposal"],
+        milestones=[],  # Convert bid milestones if needed
+        delivery_date=datetime.utcnow() + timedelta(days=bid["delivery_time"]),
+        escrow_amount=bid["amount"]
+    )
+    
+    await db.orders.insert_one(order.dict())
+    
+    # Create escrow transaction
+    escrow = EscrowTransaction(
+        order_id=order.id,
+        project_id=project_id,
+        payer_id=current_user.id,
+        payee_id=bid["creator_id"],
+        amount=bid["amount"],
+        escrow_fee=int(bid["amount"] * 0.05)  # 5% escrow fee
+    )
+    await db.escrow_transactions.insert_one(escrow.dict())
+    
+    # Deduct credits from client
+    await db.users.update_one(
+        {"id": current_user.id},
+        {"$inc": {"subscription.credits_remaining": -bid["amount"]}}
+    )
+    
+    return {
+        "success": True,
+        "order_id": order.id,
+        "message": f"Bid accepted! Order created with {bid['delivery_time']} days delivery."
+    }
+
+@api_router.get("/projects/{project_id}/analytics")
+async def get_bid_analytics(project_id: str):
+    """Get bidding analytics for a project"""
+    db = get_database()
+    
+    # Get all bids for the project
+    bids = await db.bids.find({"project_id": project_id, "status": BidStatus.active}).to_list(length=None)
+    
+    if not bids:
+        return BidAnalytics(
+            project_id=project_id,
+            average_bid=0,
+            lowest_bid=0,
+            highest_bid=0,
+            total_bids=0,
+            estimated_completion_time=0,
+            success_prediction=0.5,
+            recommended_budget={"min": 0, "max": 0, "optimal": 0},
+            trending_skills=[],
+            similar_projects_avg_price=0
+        )
+    
+    amounts = [bid["amount"] for bid in bids]
+    delivery_times = [bid["delivery_time"] for bid in bids]
+    
+    analytics = BidAnalytics(
+        project_id=project_id,
+        average_bid=sum(amounts) / len(amounts),
+        lowest_bid=min(amounts),
+        highest_bid=max(amounts),
+        total_bids=len(bids),
+        estimated_completion_time=sum(delivery_times) / len(delivery_times),
+        success_prediction=0.8 if len(bids) >= 3 else 0.6,  # More bids = higher success probability
+        recommended_budget={
+            "min": min(amounts),
+            "max": max(amounts),
+            "optimal": int(sum(amounts) / len(amounts))
+        },
+        trending_skills=["gaming", "blender", "minecraft"],  # Could be calculated from recent bids
+        similar_projects_avg_price=int(sum(amounts) / len(amounts))
+    )
+    
+    return analytics
+
+# ============= AUTO-BIDDING SYSTEM =============
+
+@api_router.post("/creators/auto-bid-settings", response_model=AutoBidSettings)
+async def create_auto_bid_settings(
+    settings_data: dict,
+    current_user: UserProfile = Depends(get_current_user_session)
+):
+    """Configure auto-bidding settings"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    if current_user.role == UserRole.viewer:
+        raise HTTPException(status_code=403, detail="Only creators can use auto-bidding")
+    
+    db = get_database()
+    
+    # Check if settings already exist
+    existing = await db.auto_bid_settings.find_one({"creator_id": current_user.id})
+    if existing:
+        raise HTTPException(status_code=400, detail="Auto-bid settings already exist. Use PUT to update.")
+    
+    settings = AutoBidSettings(
+        creator_id=current_user.id,
+        **settings_data
+    )
+    
+    await db.auto_bid_settings.insert_one(settings.dict())
+    return settings
+
+@api_router.get("/creators/auto-bid-settings", response_model=AutoBidSettings)
+async def get_auto_bid_settings(
+    current_user: UserProfile = Depends(get_current_user_session)
+):
+    """Get creator's auto-bidding settings"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    db = get_database()
+    
+    settings = await db.auto_bid_settings.find_one({"creator_id": current_user.id})
+    if not settings:
+        raise HTTPException(status_code=404, detail="Auto-bid settings not found")
+    
+    return AutoBidSettings(**settings)
+
+@api_router.post("/ai/generate-offer")
+async def generate_ai_offer(
+    project_brief: str,
+    target_creator_id: Optional[str] = None,
+    current_user: UserProfile = Depends(get_current_user_session)
+):
+    """Generate AI-powered custom offer"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    # Check if user has credits for AI features
+    if current_user.subscription.credits_remaining < 5:
+        raise HTTPException(status_code=400, detail="Insufficient credits for AI features (5 credits required)")
+    
+    db = get_database()
+    
+    try:
+        # Use Gemini to generate custom offer
+        model = genai.GenerativeModel('gemini-2.0-flash-exp')
+        
+        ai_prompt = f"""
+        Create a detailed project offer for this brief: "{project_brief}"
+        
+        Analyze the requirements and provide:
+        1. Suggested price range (in credits, where 1 credit = $0.10)
+        2. Estimated delivery time (in days)
+        3. Custom proposal text (professional and engaging)
+        4. Success probability (0.0 to 1.0)
+        5. Recommended milestones breakdown
+        
+        Consider:
+        - Project complexity
+        - Market rates for similar work
+        - Time requirements
+        - Skills needed
+        
+        Return JSON format with: suggested_price, delivery_days, proposal, success_probability, milestones
+        """
+        
+        response = model.generate_content(ai_prompt)
+        
+        # Parse AI response
+        import json
+        try:
+            ai_analysis = json.loads(response.text)
+            
+            # Create AI-generated offer
+            offer = AIGeneratedOffer(
+                creator_id=target_creator_id or "ai_system",
+                client_id=current_user.id,
+                project_brief=project_brief,
+                offer_type=AIOfferType.custom_proposal,
+                suggested_price=ai_analysis.get("suggested_price", 250),
+                estimated_delivery=ai_analysis.get("delivery_days", 7),
+                confidence_score=0.85,
+                reasoning="AI analysis based on project complexity and market rates",
+                custom_proposal=ai_analysis.get("proposal", "Custom AI-generated proposal"),
+                success_probability=ai_analysis.get("success_probability", 0.8),
+                expires_at=datetime.utcnow() + timedelta(hours=24)
+            )
+            
+            await db.ai_offers.insert_one(offer.dict())
+            
+            # Deduct credits for AI service
+            await db.users.update_one(
+                {"id": current_user.id},
+                {"$inc": {"subscription.credits_remaining": -5}}
+            )
+            
+            return {
+                "success": True,
+                "offer": offer.dict(),
+                "ai_analysis": ai_analysis
+            }
+            
+        except json.JSONDecodeError:
+            # Fallback response
+            return {
+                "success": True,
+                "offer": {
+                    "suggested_price": 250,
+                    "delivery_days": 7,
+                    "proposal": "AI-powered custom proposal based on your project requirements.",
+                    "success_probability": 0.75
+                }
+            }
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"AI service error: {str(e)}")
+
 # Include all routes
 app.include_router(api_router)
 

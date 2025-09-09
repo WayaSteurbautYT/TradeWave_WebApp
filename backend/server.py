@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, UploadFile, File, Form
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, UploadFile, File, Form, Cookie, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -12,8 +12,9 @@ import httpx
 import stripe
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
-from passlib.context import CryptContext
-from jose import JWTError, jwt
+import google.generativeai as genai
+from googleapiclient.discovery import build
+import secrets
 
 # Import our modules
 from database import connect_to_mongo, close_mongo_connection, get_database
@@ -25,37 +26,34 @@ from dotenv import load_dotenv
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# Configure Sentry
+# Configure integrations
 sentry_sdk.init(
     dsn=os.environ.get('SENTRY_DSN'),
     integrations=[FastApiIntegration()],
     traces_sample_rate=1.0,
 )
 
-# Configure Stripe
 stripe.api_key = os.environ.get('STRIPE_SECRET_KEY')
+genai.configure(api_key=os.environ.get('GOOGLE_API_KEY'))
 
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# YouTube API
+youtube = build('youtube', 'v3', developerKey=os.environ.get('GOOGLE_API_KEY'))
 
 # App lifecycle
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
     await connect_to_mongo()
     yield
-    # Shutdown
     await close_mongo_connection()
 
 # Create FastAPI app
 app = FastAPI(
     title="WayaCreate API",
-    description="Gaming, Design & Tech Content Creation Platform API by Waya Steurbaut",
-    version="1.0.0",
+    description="Complete Gaming, Design & Tech Content Platform by Waya Steurbaut",
+    version="2.0.0",
     lifespan=lifespan
 )
 
-# Create API router
 api_router = APIRouter(prefix="/api")
 
 # CORS middleware
@@ -67,201 +65,408 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# ============= AUTHENTICATION ROUTES =============
+# ============= SUBSCRIPTION-BASED AUTHENTICATION =============
 
-@api_router.post("/auth/register", response_model=dict)
-async def register_user(user_data: UserCreate):
-    """Register a new user with WayaCreate community"""
+async def get_current_user_session(
+    session_token: Optional[str] = Cookie(None, alias="session_token"),
+    authorization: Optional[str] = None
+):
+    """Get current user from session token (cookie or header)"""
+    token = session_token or (authorization.replace("Bearer ", "") if authorization else None)
+    
+    if not token:
+        return None
+    
     db = get_database()
     
-    # Check if user already exists
-    existing_user = await db.users.find_one({"email": user_data.email})
-    if existing_user:
-        raise HTTPException(status_code=400, detail="Email already registered")
+    # Check session validity
+    session = await db.sessions.find_one({
+        "session_token": token,
+        "expires_at": {"$gt": datetime.utcnow()}
+    })
     
-    # Create user profile
-    user_profile = UserProfile(**user_data.dict())
+    if not session:
+        return None
     
-    # Auto-generate username from display name to avoid null conflicts
-    username_base = user_profile.display_name.lower().replace(" ", "_").replace("-", "_")
-    username_base = "".join(c for c in username_base if c.isalnum() or c == "_")
-    user_profile.username = f"{username_base}_{user_profile.id[:8]}"
-    
-    # Give welcome tokens (1000 for new users)
-    user_profile.token_balance = 1000
-    
-    # Save to database
-    await db.users.insert_one(user_profile.dict())
-    
-    # Create access token
-    access_token = create_access_token(data={"sub": user_profile.id})
-    
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "user": user_profile.dict(),
-        "welcome_message": "Welcome to WayaCreate! You've received 1000 tokens to get started! 🎮"
-    }
-
-@api_router.post("/auth/login", response_model=dict)
-async def login_user(email: str = Form(...), password: str = Form(...)):
-    """Login to WayaCreate"""
-    db = get_database()
-    
-    # This is a mock implementation for testing
-    # In production, you'd verify password hash
-    user = await db.users.find_one({"email": email})
+    # Get user
+    user = await db.users.find_one({"id": session["user_id"]})
     if not user:
-        # Create a demo user for testing
-        demo_user = UserProfile(
-            email=email,
-            display_name="Gaming Creator",
-            role=UserRole.creator,
-            token_balance=5000,
-            bio="Gaming and tech content creator on WayaCreate! 🎮",
-            skills=["Gaming", "Blender", "Video Editing", "Minecraft", "Fortnite"]
-        )
-        # Auto-generate username
-        username_base = demo_user.display_name.lower().replace(" ", "_")
-        demo_user.username = f"{username_base}_{demo_user.id[:8]}"
+        return None
+    
+    return UserProfile(**user)
+
+@api_router.post("/auth/emergentagent-login")
+async def emergentagent_login(session_id: str, response: Response):
+    """Handle Emergent Agent OAuth login"""
+    try:
+        # Call Emergent auth API
+        async with httpx.AsyncClient() as client:
+            auth_response = await client.post(
+                "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data",
+                headers={"X-Session-ID": session_id}
+            )
+            
+            if auth_response.status_code != 200:
+                raise HTTPException(status_code=400, detail="Invalid session")
+            
+            user_data = auth_response.json()
         
-        await db.users.insert_one(demo_user.dict())
-        user = demo_user.dict()
+        db = get_database()
+        
+        # Check if user exists
+        existing_user = await db.users.find_one({"email": user_data["email"]})
+        
+        if existing_user:
+            user_profile = UserProfile(**existing_user)
+        else:
+            # Create new user with 0 credits (subscription-based)
+            user_profile = UserProfile(
+                email=user_data["email"],
+                display_name=user_data["name"],
+                avatar_url=user_data.get("picture"),
+                google_id=user_data["id"],
+                role=UserRole.viewer,
+                subscription=UserSubscription(
+                    plan=SubscriptionPlan.free,
+                    monthly_credits=10,  # Free tier gets 10 credits
+                    credits_remaining=10
+                )
+            )
+            
+            # Auto-generate username
+            username_base = user_profile.display_name.lower().replace(" ", "_")
+            user_profile.username = f"{username_base}_{user_profile.id[:8]}"
+            
+            await db.users.insert_one(user_profile.dict())
+        
+        # Create session
+        session_token = secrets.token_urlsafe(32)
+        session = UserSession(
+            user_id=user_profile.id,
+            session_token=session_token,
+            expires_at=datetime.utcnow() + timedelta(days=7)
+        )
+        
+        await db.sessions.insert_one(session.dict())
+        
+        # Set secure cookie
+        response.set_cookie(
+            key="session_token",
+            value=session_token,
+            max_age=7 * 24 * 60 * 60,  # 7 days
+            httponly=True,
+            secure=True,
+            samesite="none",
+            path="/"
+        )
+        
+        return {
+            "success": True,
+            "user": user_profile.dict(),
+            "message": f"Welcome to WayaCreate! You have {user_profile.subscription.credits_remaining} credits to get started! 🎮"
+        }
+        
+    except Exception as e:
+        logger.error(f"Login error: {e}")
+        raise HTTPException(status_code=500, detail="Login failed")
+
+@api_router.post("/auth/logout")
+async def logout(response: Response, current_user: UserProfile = Depends(get_current_user_session)):
+    """Logout user"""
+    if current_user:
+        db = get_database()
+        await db.sessions.delete_many({"user_id": current_user.id})
     
-    # Create access token
-    access_token = create_access_token(data={"sub": user["id"]})
-    
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "user": user,
-        "message": "Welcome back to WayaCreate! 🚀"
-    }
+    response.delete_cookie("session_token", path="/")
+    return {"success": True, "message": "Logged out successfully"}
 
 @api_router.get("/auth/me", response_model=UserProfile)
-async def get_current_user_profile(current_user: UserProfile = Depends(get_current_active_user)):
+async def get_current_user_profile(current_user: UserProfile = Depends(get_current_user_session)):
     """Get current user profile"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
     return current_user
 
-@api_router.put("/auth/me", response_model=UserProfile)
-async def update_user_profile(
-    user_update: UserUpdate,
-    current_user: UserProfile = Depends(get_current_active_user)
-):
-    """Update current user profile"""
-    db = get_database()
-    
-    update_data = user_update.dict(exclude_unset=True)
-    update_data["updated_at"] = datetime.utcnow()
-    
-    await db.users.update_one(
-        {"id": current_user.id},
-        {"$set": update_data}
-    )
-    
-    # Return updated user
-    updated_user = await db.users.find_one({"id": current_user.id})
-    return UserProfile(**updated_user)
+# ============= SUBSCRIPTION SYSTEM =============
 
-# ============= TOKEN ECONOMY ROUTES =============
-
-@api_router.get("/tokens/packages", response_model=List[TokenPackage])
-async def get_token_packages():
-    """Get available WayaCreate token packages"""
-    packages = [
-        TokenPackage(name="Gaming Starter", tokens=500, price_usd=4.99, bonus_tokens=50, 
-                    description="Perfect for trying out content and tutorials"),
-        TokenPackage(name="Creator Pack", tokens=1500, price_usd=12.99, bonus_tokens=200, is_popular=True,
-                    description="Most popular! Great for active creators and learners"),
-        TokenPackage(name="Pro Gamer", tokens=3000, price_usd=24.99, bonus_tokens=500,
-                    description="For serious content creators and tutorial makers"),
-        TokenPackage(name="Studio Bundle", tokens=7500, price_usd=59.99, bonus_tokens=1500,
-                    description="Perfect for teams and collaborative projects"),
-        TokenPackage(name="Master Creator", tokens=15000, price_usd=99.99, bonus_tokens=3500,
-                    description="Ultimate package for content studios and agencies"),
+@api_router.get("/subscriptions/plans")
+async def get_subscription_plans():
+    """Get available subscription plans"""
+    plans = [
+        SubscriptionPlanDetails(
+            id="free",
+            name="Free Creator",
+            price_monthly=0.0,
+            monthly_credits=10,
+            features=["Watch all content", "Basic community access", "10 monthly credits"],
+            max_uploads=2,
+            ai_requests_included=5,
+            priority_support=False
+        ),
+        SubscriptionPlanDetails(
+            id="creator",
+            name="Creator Pro",
+            price_monthly=9.99,
+            monthly_credits=100,
+            features=["Upload unlimited content", "AI content generation", "Priority support", "Advanced analytics"],
+            max_uploads=-1,  # unlimited
+            ai_requests_included=50,
+            priority_support=True
+        ),
+        SubscriptionPlanDetails(
+            id="pro",
+            name="Pro Studio",
+            price_monthly=24.99,
+            monthly_credits=300,
+            features=["Everything in Creator", "Team collaboration", "Custom branding", "API access"],
+            max_uploads=-1,
+            ai_requests_included=150,
+            priority_support=True
+        ),
+        SubscriptionPlanDetails(
+            id="business",
+            name="Business Enterprise",
+            price_monthly=99.99,
+            monthly_credits=1000,
+            features=["Everything in Pro", "White-label solution", "Dedicated support", "Custom integrations"],
+            max_uploads=-1,
+            ai_requests_included=500,
+            priority_support=True
+        )
     ]
-    return packages
+    return plans
 
-@api_router.post("/tokens/purchase")
-async def purchase_tokens(
-    package_name: str,
-    current_user: UserProfile = Depends(get_current_active_user)
+@api_router.post("/subscriptions/subscribe")
+async def create_subscription(
+    plan_id: str,
+    current_user: UserProfile = Depends(get_current_user_session)
 ):
-    """Purchase tokens using Stripe"""
-    packages = await get_token_packages()
-    package = next((p for p in packages if p.name == package_name), None)
+    """Create subscription using Stripe"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
     
-    if not package:
-        raise HTTPException(status_code=404, detail="Package not found")
+    plans = await get_subscription_plans()
+    plan = next((p for p in plans if p.id == plan_id), None)
+    
+    if not plan or plan.price_monthly == 0:
+        raise HTTPException(status_code=400, detail="Invalid plan")
     
     try:
-        # Create Stripe payment intent
-        intent = stripe.PaymentIntent.create(
-            amount=int(package.price_usd * 100),  # Convert to cents
-            currency='usd',
+        # Create Stripe subscription
+        subscription = stripe.Subscription.create(
+            customer=current_user.email,  # In production, create proper customer
+            items=[{
+                'price_data': {
+                    'currency': 'usd',
+                    'product': {
+                        'name': f'WayaCreate {plan.name}'
+                    },
+                    'unit_amount': int(plan.price_monthly * 100),
+                    'recurring': {'interval': 'month'}
+                }
+            }],
             metadata={
                 'user_id': current_user.id,
-                'package_name': package_name,
-                'tokens': package.tokens + package.bonus_tokens
+                'plan_id': plan_id
             }
         )
         
         return {
-            "client_secret": intent.client_secret,
-            "package": package.dict()
+            "subscription_id": subscription.id,
+            "client_secret": subscription.latest_invoice.payment_intent.client_secret if subscription.latest_invoice else None,
+            "plan": plan.dict()
         }
+        
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@api_router.post("/tokens/confirm-payment")
-async def confirm_token_payment(
-    payment_intent_id: str,
-    current_user: UserProfile = Depends(get_current_active_user)
+# ============= AI GENERATION WITH GEMINI 2.0 FLASH =============
+
+@api_router.post("/ai/generate", response_model=AIRequest)
+async def generate_ai_content(
+    ai_request: AIRequestCreate,
+    current_user: UserProfile = Depends(get_current_user_session)
 ):
-    """Confirm token purchase and add tokens to user balance"""
+    """Generate content using Gemini 2.0 Flash"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    # Check credits
+    credits_cost = {
+        AIRequestType.text_generation: 2,
+        AIRequestType.code_generation: 3,
+        AIRequestType.image_generation: 5,
+        AIRequestType.content_enhancement: 2,
+        AIRequestType.tutorial_generation: 4
+    }
+    
+    cost = credits_cost.get(ai_request.request_type, 2)
+    
+    if current_user.subscription.credits_remaining < cost:
+        raise HTTPException(status_code=400, detail=f"Insufficient credits. Need {cost} credits.")
+    
     db = get_database()
     
     try:
-        # Retrieve payment intent from Stripe
-        intent = stripe.PaymentIntent.retrieve(payment_intent_id)
+        # Use Gemini 2.0 Flash
+        model = genai.GenerativeModel('gemini-2.0-flash-exp')
         
-        if intent.status == 'succeeded':
-            tokens_to_add = int(intent.metadata['tokens'])
-            
-            await db.users.update_one(
-                {"id": current_user.id},
-                {"$inc": {"token_balance": tokens_to_add}}
-            )
-            
-            # Create transaction record
-            transaction = Transaction(
-                to_user_id=current_user.id,
-                amount=tokens_to_add,
-                transaction_type=TransactionType.token_purchase,
-                status=TransactionStatus.completed,
-                stripe_payment_intent_id=payment_intent_id,
-                description=f"Token purchase - {intent.metadata['package_name']}"
-            )
-            
-            await db.transactions.insert_one(transaction.dict())
-            
-            return {
-                "success": True,
-                "tokens_added": tokens_to_add,
-                "new_balance": current_user.token_balance + tokens_to_add,
-                "message": f"🎉 {tokens_to_add} tokens added to your account!"
-            }
-        else:
-            raise HTTPException(status_code=400, detail="Payment not successful")
-            
+        # Enhance prompt based on type
+        enhanced_prompt = ai_request.prompt
+        if ai_request.request_type == AIRequestType.tutorial_generation:
+            enhanced_prompt = f"Create a detailed step-by-step tutorial for: {ai_request.prompt}. Include beginner-friendly explanations, tips, and best practices."
+        elif ai_request.request_type == AIRequestType.code_generation:
+            enhanced_prompt = f"Generate clean, well-commented code for: {ai_request.prompt}. Include explanations for key concepts."
+        
+        response = model.generate_content(enhanced_prompt)
+        
+        # Create AI request record
+        ai_req = AIRequest(
+            **ai_request.dict(),
+            user_id=current_user.id,
+            cost_credits=cost,
+            result_text=response.text,
+            status="completed"
+        )
+        
+        await db.ai_requests.insert_one(ai_req.dict())
+        
+        # Deduct credits
+        await db.users.update_one(
+            {"id": current_user.id},
+            {"$inc": {"subscription.credits_remaining": -cost, "subscription.credits_used": cost}}
+        )
+        
+        return ai_req
+        
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        logger.error(f"AI generation error: {e}")
+        raise HTTPException(status_code=500, detail="AI generation failed")
 
-# ============= CONTENT ROUTES =============
+# ============= YOUTUBE CONTENT IMPORT =============
+
+@api_router.post("/import/youtube")
+async def import_youtube_content(
+    import_request: YouTubeImportRequest,
+    current_user: UserProfile = Depends(get_current_user_session)
+):
+    """Import content from YouTube channel"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    try:
+        # Extract channel ID from URL
+        channel_id = import_request.channel_url.split('/')[-1]
+        if '@' in channel_id:
+            channel_id = channel_id.replace('@', '')
+        
+        # Get channel videos
+        search_response = youtube.search().list(
+            part='id,snippet',
+            channelId=channel_id,
+            maxResults=min(import_request.max_items, 50),
+            order='date'
+        ).execute()
+        
+        imported_content = []
+        db = get_database()
+        
+        for item in search_response['items']:
+            if item['id']['kind'] == 'youtube#video':
+                video_id = item['id']['videoId']
+                snippet = item['snippet']
+                
+                # Determine content type
+                content_type = ContentType.video
+                if 'shorts' in snippet['title'].lower() or snippet.get('duration', 0) <= 60:
+                    content_type = ContentType.short
+                
+                # Create content record
+                content = Content(
+                    creator_id=current_user.id,
+                    title=snippet['title'],
+                    description=snippet['description'],
+                    content_type=content_type,
+                    thumbnail_url=snippet['thumbnails']['medium']['url'],
+                    tags=snippet.get('tags', []),
+                    category="Gaming",  # Default for WayaCreate
+                    status=ContentStatus.draft,  # Imported as draft
+                    imported_from=ImportedContent(
+                        original_platform="youtube",
+                        original_id=video_id,
+                        original_url=f"https://www.youtube.com/watch?v={video_id}"
+                    ),
+                    tutorial_included=False  # User needs to add tutorial
+                )
+                
+                await db.content.insert_one(content.dict())
+                imported_content.append(content)
+        
+        return {
+            "success": True,
+            "imported_count": len(imported_content),
+            "content": [c.dict() for c in imported_content[:5]]  # Return first 5
+        }
+        
+    except Exception as e:
+        logger.error(f"YouTube import error: {e}")
+        raise HTTPException(status_code=500, detail="Import failed")
+
+# ============= RATING SYSTEM =============
+
+@api_router.post("/ratings", response_model=Rating)
+async def create_rating(
+    rating_data: dict,
+    current_user: UserProfile = Depends(get_current_user_session)
+):
+    """Create a rating/review"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    db = get_database()
+    
+    rating = Rating(
+        reviewer_id=current_user.id,
+        reviewee_id=rating_data["reviewee_id"],
+        content_id=rating_data.get("content_id"),
+        service_id=rating_data.get("service_id"),
+        order_id=rating_data.get("order_id"),
+        rating_type=RatingType(rating_data["rating_type"]),
+        rating=rating_data["rating"],
+        comment=rating_data.get("comment")
+    )
+    
+    await db.ratings.insert_one(rating.dict())
+    
+    # Update target's rating average
+    target_collection = "users"
+    target_id = rating_data["reviewee_id"]
+    
+    if rating_data["rating_type"] == "content":
+        target_collection = "content"
+        target_id = rating_data["content_id"]
+    elif rating_data["rating_type"] == "service":
+        target_collection = "services"
+        target_id = rating_data["service_id"]
+    
+    # Calculate new average rating
+    ratings = await db.ratings.find({
+        f"{rating_data['rating_type']}_id": target_id
+    }).to_list(length=None)
+    
+    if ratings:
+        avg_rating = sum(r["rating"] for r in ratings) / len(ratings)
+        await db[target_collection].update_one(
+            {"id": target_id},
+            {"$set": {"rating": avg_rating, "review_count": len(ratings)}}
+        )
+    
+    return rating
+
+# ============= COMPLETE CONTENT SYSTEM =============
 
 @api_router.get("/content", response_model=List[Content])
 async def get_content(
@@ -271,12 +476,11 @@ async def get_content(
     tags: Optional[str] = None,
     content_type: Optional[str] = None,
     sort_by: str = "created_at",
-    free_only: bool = False
+    search: Optional[str] = None
 ):
-    """Get gaming and tech content with filters"""
+    """Get all content with advanced filtering"""
     db = get_database()
     
-    # Build query
     query = {"status": ContentStatus.published}
     if category:
         query["category"] = category
@@ -285,295 +489,79 @@ async def get_content(
     if tags:
         tag_list = tags.split(",")
         query["tags"] = {"$in": tag_list}
-    if free_only:
-        query["price"] = 0
+    if search:
+        query["$or"] = [
+            {"title": {"$regex": search, "$options": "i"}},
+            {"description": {"$regex": search, "$options": "i"}},
+            {"tags": {"$in": [search]}}
+        ]
     
-    # Sort options
     sort_options = {
         "created_at": [("created_at", -1)],
         "popular": [("views_count", -1), ("likes_count", -1)],
         "rating": [("rating", -1)],
-        "price": [("price", 1)]
+        "trending": [("likes_count", -1), ("created_at", -1)]
     }
     sort = sort_options.get(sort_by, [("created_at", -1)])
     
-    # Execute query
     skip = (page - 1) * limit
     cursor = db.content.find(query).sort(sort).skip(skip).limit(limit)
     content_list = await cursor.to_list(length=limit)
-    
-    # Add some sample gaming content if database is empty
-    if not content_list and page == 1:
-        sample_content = [
-            {
-                "id": "minecraft-build-1",
-                "creator_id": "waya-creator",
-                "title": "Epic Minecraft Castle Build Tutorial",
-                "description": "Learn to build amazing medieval castles in Minecraft with step-by-step guide and project files!",
-                "content_type": "video",
-                "price": 0,  # Free to watch
-                "download_price": 150,  # Tokens to download project files
-                "tags": ["minecraft", "building", "tutorial", "medieval"],
-                "category": "Gaming",
-                "status": "published",
-                "views_count": 15420,
-                "likes_count": 890,
-                "rating": 4.8,
-                "review_count": 234,
-                "thumbnail_url": "https://images.unsplash.com/photo-1493711662062-fa541adb3fc8?w=400",
-                "created_at": datetime.utcnow()
-            },
-            {
-                "id": "blender-tutorial-1", 
-                "creator_id": "waya-creator",
-                "title": "Blender 3D Character Modeling Masterclass",
-                "description": "Complete guide to creating game-ready characters in Blender with all project files included!",
-                "content_type": "course",
-                "price": 0,  # Free to watch
-                "download_price": 300,  # Tokens for project files
-                "tags": ["blender", "3d-modeling", "character-design", "game-dev"],
-                "category": "Design",
-                "status": "published", 
-                "views_count": 8930,
-                "likes_count": 567,
-                "rating": 4.9,
-                "review_count": 123,
-                "thumbnail_url": "https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=400",
-                "created_at": datetime.utcnow()
-            }
-        ]
-        return [Content(**content) for content in sample_content]
     
     return [Content(**content) for content in content_list]
 
 @api_router.post("/content", response_model=Content)
 async def create_content(
-    title: str = Form(...),
-    description: str = Form(...),
-    content_type: str = Form(...),
-    category: str = Form(...),
-    price: int = Form(0),
-    download_price: int = Form(0),
-    tags: str = Form(""),
-    tutorial_required: bool = Form(True),
-    file_upload: Optional[UploadFile] = File(None),
-    current_user: UserProfile = Depends(require_role(["creator", "business", "admin"]))
+    content_data: ContentCreate,
+    current_user: UserProfile = Depends(get_current_user_session)
 ):
-    """Create new gaming/tech content (requires tutorial)"""
+    """Create new content with tutorial requirement"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    if current_user.role == UserRole.viewer:
+        raise HTTPException(status_code=403, detail="Only creators can upload content")
+    
+    # Check if tutorial is included
+    if not content_data.tutorial_url and not content_data.project_files:
+        raise HTTPException(status_code=400, detail="Tutorial or project files required for all content on WayaCreate")
+    
     db = get_database()
     
-    tag_list = [tag.strip() for tag in tags.split(",") if tag.strip()]
-    
     content = Content(
+        **content_data.dict(),
         creator_id=current_user.id,
-        title=title,
-        description=description,
-        content_type=ContentType(content_type),
-        category=category,
-        price=price,
-        tags=tag_list,
-        tutorial_required=tutorial_required,
-        rights=[ContentRights.view]  # Default rights
+        tutorial_included=True
     )
-    
-    # Add download rights if download price is set
-    if download_price > 0:
-        content.rights.append(ContentRights.download)
-        content.download_price = download_price
     
     await db.content.insert_one(content.dict())
     
-    return content
-
-# ============= SERVICE MARKETPLACE ROUTES =============
-
-@api_router.get("/services", response_model=List[Service])
-async def get_services(
-    page: int = 1,
-    limit: int = 20,
-    category: Optional[str] = None,
-    tags: Optional[str] = None,
-    sort_by: str = "created_at"
-):
-    """Get gaming and tech services"""
-    db = get_database()
-    
-    # Build query
-    query = {"status": ServiceStatus.active}
-    if category:
-        query["category"] = category
-    if tags:
-        tag_list = tags.split(",")
-        query["tags"] = {"$in": tag_list}
-    
-    skip = (page - 1) * limit
-    cursor = db.services.find(query).sort([("created_at", -1)]).skip(skip).limit(limit)
-    services_list = await cursor.to_list(length=limit)
-    
-    # Add sample services if database is empty
-    if not services_list and page == 1:
-        sample_services = [
-            {
-                "id": "minecraft-build-service",
-                "creator_id": "waya-creator",
-                "title": "Custom Minecraft Builds & Tutorials",
-                "description": "I'll create amazing custom Minecraft builds and provide complete tutorials showing how I made them!",
-                "category": "Gaming",
-                "tags": ["minecraft", "building", "tutorial", "custom"],
-                "packages": {
-                    "basic": {
-                        "name": "Simple Build + Tutorial",
-                        "description": "Basic structure with step-by-step tutorial video",
-                        "price": 299,
-                        "delivery_time": 3,
-                        "revisions": 1,
-                        "features": ["Custom build", "Tutorial video", "Project files"]
-                    },
-                    "standard": {
-                        "name": "Complex Build + Tutorial",  
-                        "description": "Advanced build with detailed tutorial and bonus tips",
-                        "price": 599,
-                        "delivery_time": 5,
-                        "revisions": 2,
-                        "features": ["Complex custom build", "Detailed tutorial", "Project files", "Bonus tips video"]
-                    },
-                    "premium": {
-                        "name": "Epic Build Series + Tutorials",
-                        "description": "Multiple connected builds with complete tutorial series",
-                        "price": 1299,
-                        "delivery_time": 10,
-                        "revisions": 3,
-                        "features": ["Multiple builds", "Tutorial series", "All project files", "1-on-1 session"]
-                    }
-                },
-                "status": "active",
-                "rating": 4.9,
-                "review_count": 156,
-                "orders_completed": 234,
-                "created_at": datetime.utcnow()
-            }
-        ]
-        return [Service(**service) for service in sample_services]
-    
-    return [Service(**service) for service in services_list]
-
-# ============= AI FEATURES ROUTES =============
-
-@api_router.post("/ai/generate", response_model=AIRequest)
-async def create_ai_request(
-    ai_request: AIRequestCreate,
-    current_user: UserProfile = Depends(get_current_active_user)
-):
-    """Create AI generation request for gaming/tech content"""
-    db = get_database()
-    
-    # AI costs for gaming/tech content
-    ai_costs = {
-        "gaming_thumbnail": 75,
-        "blender_script": 150,
-        "video_editing_script": 100,
-        "minecraft_structure": 200,
-        "tutorial_outline": 50,
-        "content_description": 25
-    }
-    
-    cost = ai_costs.get(ai_request.request_type, 75)
-    
-    # Check if user has enough tokens
-    if current_user.token_balance < cost:
-        raise HTTPException(status_code=400, detail=f"Insufficient tokens. Need {cost} tokens for this AI request.")
-    
-    # Create AI request
-    ai_req = AIRequest(
-        **ai_request.dict(),
-        user_id=current_user.id,
-        cost_tokens=cost
-    )
-    
-    await db.ai_requests.insert_one(ai_req.dict())
-    
-    # Deduct tokens
+    # Award XP to user
     await db.users.update_one(
         {"id": current_user.id},
-        {"$inc": {"token_balance": -cost}}
+        {"$inc": {"level.xp": 50}}  # 50 XP for content creation
     )
     
-    return ai_req
+    return content
 
-# ============= COMMUNITY ROUTES =============
-
-@api_router.get("/community/posts", response_model=List[CommunityPost])
-async def get_community_posts(
-    page: int = 1,
-    limit: int = 20,
-    tags: Optional[str] = None
-):
-    """Get gaming and tech community posts"""
-    db = get_database()
-    
-    query = {}
-    if tags:
-        tag_list = tags.split(",")
-        query["tags"] = {"$in": tag_list}
-    
-    skip = (page - 1) * limit
-    cursor = db.community_posts.find(query).sort([("created_at", -1)]).skip(skip).limit(limit)
-    posts = await cursor.to_list(length=limit)
-    
-    # Add sample posts if database is empty
-    if not posts and page == 1:
-        sample_posts = [
-            {
-                "id": "gaming-post-1",
-                "author_id": "waya-creator",
-                "title": "New Minecraft Build Tutorial Coming Soon! 🏰",
-                "content": "Working on an epic medieval castle tutorial with complete project files! What kind of builds would you like to see next? Drop your suggestions below! 🎮",
-                "post_type": "text",
-                "tags": ["minecraft", "building", "tutorial", "community"],
-                "likes_count": 234,
-                "comments_count": 45,
-                "shares_count": 12,
-                "created_at": datetime.utcnow()
-            },
-            {
-                "id": "blender-tips-1",
-                "author_id": "waya-creator", 
-                "title": "Free Blender Shortcuts Cheat Sheet! 📋",
-                "content": "Just created a comprehensive Blender shortcuts cheat sheet for all you 3D artists! Perfect for beginners and pros alike. Available for free download! 🎨",
-                "post_type": "text",
-                "tags": ["blender", "3d-modeling", "tips", "free"],
-                "likes_count": 567,
-                "comments_count": 89,
-                "shares_count": 34,
-                "created_at": datetime.utcnow()
-            }
-        ]
-        return [CommunityPost(**post) for post in sample_posts]
-    
-    return [CommunityPost(**post) for post in posts]
-
-@api_router.post("/community/posts", response_model=CommunityPost)
-async def create_community_post(
-    post_data: PostCreate,
-    current_user: UserProfile = Depends(get_current_active_user)
-):
-    """Create community post"""
-    db = get_database()
-    
-    post = CommunityPost(**post_data.dict(), author_id=current_user.id)
-    await db.community_posts.insert_one(post.dict())
-    
-    return post
-
-# ============= LEGACY ROUTES (for compatibility) =============
+# Include all routes
+app.include_router(api_router)
 
 @api_router.get("/")
 async def root():
     return {
-        "message": "WayaCreate API v1.0 - Gaming, Design & Tech Content Platform 🎮",
+        "message": "WayaCreate API v2.0 - Complete Gaming, Design & Tech Platform 🎮",
         "creator": "Waya Steurbaut",
         "youtube": "https://www.youtube.com/@wayasteurbaut",
-        "description": "Where YOUR gaming and tech ideas come to life!"
+        "features": [
+            "Google OAuth Login",
+            "YouTube Content Import",
+            "Gemini 2.0 Flash AI Generation",
+            "Subscription-based Credits",
+            "Complete Rating System",
+            "Tutorial Requirements",
+            "Advanced Search & Filtering"
+        ]
     }
 
 @api_router.get("/health")
@@ -581,13 +569,10 @@ async def health_check():
     return {
         "status": "healthy",
         "timestamp": datetime.utcnow(),
-        "version": "1.0.0",
-        "platform": "WayaCreate",
+        "version": "2.0.0",
+        "platform": "WayaCreate Complete",
         "creator": "Waya Steurbaut"
     }
-
-# Include router in app
-app.include_router(api_router)
 
 if __name__ == "__main__":
     import uvicorn

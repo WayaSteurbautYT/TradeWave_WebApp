@@ -11,12 +11,34 @@ class UserRole(str, Enum):
     business = "business"
     admin = "admin"
 
+class SubscriptionPlan(str, Enum):
+    free = "free"
+    creator = "creator"
+    pro = "pro"
+    business = "business"
+
 class SocialMediaAccount(BaseModel):
     platform: str
     username: str
     url: str
     followers: Optional[int] = 0
     verified: bool = False
+    access_token: Optional[str] = None  # For API access
+
+class UserSubscription(BaseModel):
+    plan: SubscriptionPlan = SubscriptionPlan.free
+    monthly_credits: int = 0
+    credits_used: int = 0
+    credits_remaining: int = 0
+    renewal_date: Optional[datetime] = None
+    stripe_subscription_id: Optional[str] = None
+
+class UserLevel(BaseModel):
+    level: int = 1
+    xp: int = 0
+    xp_to_next: int = 100
+    title: str = "Beginner Creator"
+    badges: List[str] = []
 
 class UserProfile(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -28,9 +50,8 @@ class UserProfile(BaseModel):
     bio: Optional[str] = None
     role: UserRole = UserRole.viewer
     is_verified: bool = False
-    token_balance: int = 0
-    total_earned: int = 0
-    total_spent: int = 0
+    subscription: UserSubscription = Field(default_factory=UserSubscription)
+    level: UserLevel = Field(default_factory=UserLevel)
     social_accounts: List[SocialMediaAccount] = []
     skills: List[str] = []
     languages: List[str] = []
@@ -38,15 +59,21 @@ class UserProfile(BaseModel):
     website: Optional[str] = None
     rating: float = 0.0
     review_count: int = 0
+    total_earned: int = 0
+    total_spent: int = 0
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     is_active: bool = True
+    # Google/Social Auth
+    google_id: Optional[str] = None
+    session_token: Optional[str] = None
 
 class UserCreate(BaseModel):
     email: str
     display_name: str
     role: UserRole = UserRole.viewer
     avatar_url: Optional[str] = None
+    google_id: Optional[str] = None
 
 class UserUpdate(BaseModel):
     display_name: Optional[str] = None
@@ -61,12 +88,15 @@ class UserUpdate(BaseModel):
 # Content Models
 class ContentType(str, Enum):
     video = "video"
+    short = "short"
+    livestream = "livestream"
     image = "image"
     audio = "audio"
     document = "document"
     course = "course"
     model_3d = "3d_model"
     template = "template"
+    code = "code"
 
 class ContentRights(str, Enum):
     view = "view"
@@ -81,6 +111,12 @@ class ContentStatus(str, Enum):
     archived = "archived"
     deleted = "deleted"
 
+class ImportedContent(BaseModel):
+    original_platform: str
+    original_id: str
+    original_url: str
+    imported_at: datetime = Field(default_factory=datetime.utcnow)
+
 class Content(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     creator_id: str
@@ -90,7 +126,8 @@ class Content(BaseModel):
     file_url: Optional[str] = None
     thumbnail_url: Optional[str] = None
     preview_url: Optional[str] = None
-    price: int = 0  # in tokens
+    price: int = 0  # in credits/tokens
+    download_price: int = 0  # credits for project files
     tags: List[str] = []
     category: str
     rights: List[ContentRights] = []
@@ -102,6 +139,10 @@ class Content(BaseModel):
     file_size: Optional[int] = None  # in bytes
     rating: float = 0.0
     review_count: int = 0
+    tutorial_included: bool = True  # Required for WayaCreate
+    tutorial_url: Optional[str] = None
+    project_files: List[str] = []  # URLs to downloadable files
+    imported_from: Optional[ImportedContent] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -112,15 +153,18 @@ class ContentCreate(BaseModel):
     file_url: Optional[str] = None
     thumbnail_url: Optional[str] = None
     price: int = 0
+    download_price: int = 0
     tags: List[str] = []
     category: str
     rights: List[ContentRights] = []
+    tutorial_url: Optional[str] = None
+    project_files: List[str] = []
 
 # Service Models
 class ServicePackage(BaseModel):
     name: str
     description: str
-    price: int  # in tokens
+    price: int  # in credits
     delivery_time: int  # in days
     revisions: int
     features: List[str] = []
@@ -144,6 +188,7 @@ class Service(BaseModel):
     rating: float = 0.0
     review_count: int = 0
     orders_completed: int = 0
+    tutorial_included: bool = True  # Required for WayaCreate
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -173,7 +218,7 @@ class Order(BaseModel):
     creator_id: str
     service_id: str
     package_type: str  # basic, standard, premium
-    amount: int  # in tokens
+    amount: int  # in credits
     requirements: str
     status: OrderStatus = OrderStatus.pending
     delivery_date: Optional[datetime] = None
@@ -188,123 +233,70 @@ class OrderCreate(BaseModel):
     package_type: str
     requirements: str
 
-# Transaction Models
-class TransactionType(str, Enum):
-    token_purchase = "token_purchase"
-    content_purchase = "content_purchase"
-    service_payment = "service_payment"
-    creator_earning = "creator_earning"
-    platform_fee = "platform_fee"
-    buyer_cashback = "buyer_cashback"
-    withdrawal = "withdrawal"
-    refund = "refund"
+# Rating System
+class RatingType(str, Enum):
+    content = "content"
+    service = "service"
+    user = "user"
 
-class TransactionStatus(str, Enum):
-    pending = "pending"
-    completed = "completed"
-    failed = "failed"
-    cancelled = "cancelled"
-    refunded = "refunded"
-
-class Transaction(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    from_user_id: Optional[str] = None
-    to_user_id: Optional[str] = None
-    content_id: Optional[str] = None
-    service_id: Optional[str] = None
-    order_id: Optional[str] = None
-    amount: int
-    transaction_type: TransactionType
-    status: TransactionStatus = TransactionStatus.pending
-    stripe_payment_intent_id: Optional[str] = None
-    description: Optional[str] = None
-    metadata: Dict[str, Any] = {}
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
-
-# Token Package Models
-class TokenPackage(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    name: str
-    tokens: int
-    price_usd: float
-    bonus_tokens: int = 0
-    is_popular: bool = False
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-
-# Message Models
-class MessageType(str, Enum):
-    text = "text"
-    image = "image"
-    file = "file"
-    offer = "offer"
-    system = "system"
-
-class Message(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    conversation_id: str
-    sender_id: str
-    recipient_id: str
-    content: str
-    message_type: MessageType = MessageType.text
-    attachments: List[str] = []
-    read_at: Optional[datetime] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-
-# Review Models
-class Review(BaseModel):
+class Rating(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     reviewer_id: str
     reviewee_id: str
     content_id: Optional[str] = None
     service_id: Optional[str] = None
     order_id: Optional[str] = None
+    rating_type: RatingType
     rating: int = Field(ge=1, le=5)
     comment: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
-# AI Feature Models
+# AI Generation Models
+class AIRequestType(str, Enum):
+    text_generation = "text_generation"
+    code_generation = "code_generation"
+    image_generation = "image_generation"
+    content_enhancement = "content_enhancement"
+    tutorial_generation = "tutorial_generation"
+
 class AIRequest(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     user_id: str
-    request_type: str  # content_generation, image_enhancement, etc.
+    request_type: AIRequestType
     prompt: str
     parameters: Dict[str, Any] = {}
     result_url: Optional[str] = None
-    cost_tokens: int = 0
+    result_text: Optional[str] = None
+    cost_credits: int = 0
     status: str = "pending"
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class AIRequestCreate(BaseModel):
-    request_type: str
+    request_type: AIRequestType
     prompt: str
     parameters: Dict[str, Any] = {}
 
-# Community Models
-class PostType(str, Enum):
-    text = "text"
-    image = "image"
-    video = "video"
-    link = "link"
-    poll = "poll"
-
-class CommunityPost(BaseModel):
+# Session Management
+class UserSession(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    author_id: str
-    title: Optional[str] = None
-    content: str
-    post_type: PostType = PostType.text
-    media_urls: List[str] = []
-    tags: List[str] = []
-    likes_count: int = 0
-    comments_count: int = 0
-    shares_count: int = 0
+    user_id: str
+    session_token: str
+    expires_at: datetime
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
-class PostCreate(BaseModel):
-    title: Optional[str] = None
-    content: str
-    post_type: PostType = PostType.text
-    media_urls: List[str] = []
-    tags: List[str] = []
+# Subscription Plans
+class SubscriptionPlanDetails(BaseModel):
+    id: str
+    name: str
+    price_monthly: float
+    monthly_credits: int
+    features: List[str]
+    max_uploads: int
+    ai_requests_included: int
+    priority_support: bool = False
+
+# YouTube Import Models
+class YouTubeImportRequest(BaseModel):
+    channel_url: str
+    import_types: List[str] = ["videos", "shorts", "playlists"]
+    max_items: int = 50

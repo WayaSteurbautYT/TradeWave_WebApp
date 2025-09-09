@@ -365,14 +365,14 @@ def main():
     
     # Test 1: Basic connectivity and health
     print("\n📡 Testing Basic API Connectivity & Health...")
-    root_success, _ = tester.test_root_endpoint()
+    root_success, _, _ = tester.test_root_endpoint()
     
     if not root_success:
         print("\n❌ CRITICAL: Root API endpoint failed - backend may not be running")
         print("Please check if the backend service is running and accessible")
         return 1
     
-    health_success = tester.test_health_check()
+    health_success, _, _ = tester.test_health_check()
     db_success = tester.test_database_connection()
     
     # Test 2: Authentication System
@@ -381,30 +381,30 @@ def main():
     
     if auth_success:
         # Test getting current user profile
-        profile_success, _ = tester.test_get_current_user()
+        profile_success, _, _ = tester.test_get_current_user()
         
         # Test logout
-        logout_success, _ = tester.test_logout()
+        logout_success, _, _ = tester.test_logout()
     else:
         print("⚠️ Authentication failed - skipping dependent tests")
     
     # Test 3: Token/Subscription System
     print("\n💰 Testing Token/Subscription System...")
-    plans_success, _ = tester.test_subscription_plans()
+    plans_success, _, _ = tester.test_subscription_plans()
     
     if auth_success:
         # Test Stripe integration
-        stripe_success, _ = tester.test_create_subscription()
+        stripe_success, _, _ = tester.test_create_subscription()
     
     # Test 4: AI Generation System
     print("\n🤖 Testing AI Generation System...")
     if auth_success:
-        ai_success, _ = tester.test_ai_generation()
+        ai_success, _, _ = tester.test_ai_generation()
     
     # Test 5: YouTube Import System
     print("\n📺 Testing YouTube Import System...")
     if auth_success:
-        youtube_success, _ = tester.test_youtube_import()
+        youtube_success, _, _ = tester.test_youtube_import()
     
     # Test 6: Content System
     print("\n📝 Testing Content System...")
@@ -413,7 +413,7 @@ def main():
     # Test 7: Rating System
     print("\n⭐ Testing Rating System...")
     if auth_success:
-        rating_success, _ = tester.test_rating_system()
+        rating_success, _, _ = tester.test_rating_system()
     
     # Test 8: CORS Configuration
     print("\n🌐 Testing CORS Configuration...")

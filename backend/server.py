@@ -1110,6 +1110,495 @@ async def health_check():
         "creator": "Waya Steurbaut"
     }
 
+# ============= LIVE ANALYTICS & DATA TRACKING =============
+
+@api_router.get("/analytics/live")
+async def get_live_analytics():
+    """Get real-time platform analytics"""
+    db = get_database()
+    
+    today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    # Get live stats
+    total_users = await db.users.count_documents({})
+    active_users_today = await db.user_activity.distinct("user_id", {
+        "timestamp": {"$gte": today},
+        "activity_type": {"$in": ["login", "order_created", "content_downloaded"]}
+    })
+    
+    total_orders = await db.orders.count_documents({})
+    orders_today = await db.orders.count_documents({"created_at": {"$gte": today}})
+    
+    total_services = await db.services.count_documents({"status": ServiceStatus.active})
+    active_creators = await db.users.count_documents({"role": {"$in": [UserRole.creator, UserRole.business]}})
+    
+    # Calculate revenue
+    completed_orders = await db.orders.find({"status": OrderStatus.completed}).to_list(length=None)
+    total_revenue = sum(order.get("total_amount", 0) * 0.10 for order in completed_orders)  # Convert credits to USD
+    
+    orders_today_completed = await db.orders.find({
+        "status": OrderStatus.completed,
+        "updated_at": {"$gte": today}
+    }).to_list(length=None)
+    revenue_today = sum(order.get("total_amount", 0) * 0.10 for order in orders_today_completed)
+    
+    # Download stats
+    total_downloads = await db.user_activity.count_documents({"activity_type": "content_downloaded"})
+    downloads_today = await db.user_activity.count_documents({
+        "activity_type": "content_downloaded",
+        "timestamp": {"$gte": today}
+    })
+    
+    analytics = PlatformAnalytics(
+        total_users=total_users,
+        active_users_today=len(active_users_today),
+        total_orders=total_orders,
+        orders_today=orders_today,
+        total_revenue=total_revenue,
+        revenue_today=revenue_today,
+        total_downloads=total_downloads,
+        downloads_today=downloads_today,
+        total_services=total_services,
+        active_creators=active_creators,
+        platform_fees_collected=total_revenue * 0.05  # 5% platform fee
+    )
+    
+    # Store daily analytics
+    await db.platform_analytics.insert_one(analytics.dict())
+    
+    return analytics
+
+@api_router.post("/analytics/track")
+async def track_user_activity(
+    activity_type: str,
+    details: Dict[str, Any] = {},
+    current_user: UserProfile = Depends(get_current_user_session)
+):
+    """Track user activity for analytics"""
+    if not current_user:
+        return {"success": False}
+    
+    db = get_database()
+    
+    activity = UserActivity(
+        user_id=current_user.id,
+        activity_type=activity_type,
+        details=details
+    )
+    
+    await db.user_activity.insert_one(activity.dict())
+    
+    return {"success": True}
+
+# ============= PLATFORM FEE SYSTEM =============
+
+@api_router.get("/platform/config")
+async def get_platform_config():
+    """Get platform configuration"""
+    return PlatformConfig()
+
+@api_router.put("/orders/{order_id}/complete-with-fee")
+async def complete_order_with_platform_fee(
+    order_id: str,
+    current_user: UserProfile = Depends(get_current_user_session)
+):
+    """Complete order and apply platform fee"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    db = get_database()
+    order = await db.orders.find_one({"id": order_id})
+    
+    if not order or order["client_id"] != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    if order["status"] != OrderStatus.delivered:
+        raise HTTPException(status_code=400, detail="Order must be delivered first")
+    
+    # Calculate platform fee (5%)
+    platform_fee = int(order["total_amount"] * 0.05)
+    creator_payment = order["total_amount"] - platform_fee
+    
+    # Release payment to creator (minus platform fee)
+    await db.users.update_one(
+        {"id": order["creator_id"]},
+        {"$inc": {"subscription.credits_remaining": creator_payment, "total_earned": creator_payment}}
+    )
+    
+    # Update client spending
+    await db.users.update_one(
+        {"id": order["client_id"]},
+        {"$inc": {"total_spent": order["total_amount"]}}
+    )
+    
+    # Record platform fee
+    platform_transaction = TokenTransaction(
+        user_id="platform",
+        transaction_type="platform_fee",
+        amount=platform_fee,
+        description=f"Platform fee for order #{order_id[:8]}"
+    )
+    await db.token_transactions.insert_one(platform_transaction.dict())
+    
+    # Mark order as completed
+    await db.orders.update_one(
+        {"id": order_id},
+        {"$set": {"status": OrderStatus.completed, "updated_at": datetime.utcnow()}}
+    )
+    
+    # Track activity
+    await track_user_activity("order_completed", {"order_id": order_id, "amount": order["total_amount"]}, current_user)
+    
+    return {
+        "success": True,
+        "creator_payment": creator_payment,
+        "platform_fee": platform_fee,
+        "message": f"Order completed. Creator received {creator_payment} credits (after 5% platform fee)"
+    }
+
+# ============= FEATURED LISTINGS SYSTEM =============
+
+@api_router.post("/services/{service_id}/feature")
+async def feature_service(
+    service_id: str,
+    featured_type: str,
+    duration_days: int,
+    current_user: UserProfile = Depends(get_current_user_session)
+):
+    """Feature a service for increased visibility"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    db = get_database()
+    
+    # Check if user owns the service
+    service = await db.services.find_one({"id": service_id, "creator_id": current_user.id})
+    if not service:
+        raise HTTPException(status_code=404, detail="Service not found")
+    
+    config = PlatformConfig()
+    cost_per_day = config.featured_listing_costs.get(featured_type, 25)
+    total_cost = cost_per_day * duration_days
+    
+    # Check if user has enough credits
+    if current_user.subscription.credits_remaining < total_cost:
+        raise HTTPException(status_code=400, detail=f"Insufficient credits. Need {total_cost} credits.")
+    
+    # Create featured listing
+    end_date = datetime.utcnow() + timedelta(days=duration_days)
+    
+    featured_listing = FeaturedListing(
+        service_id=service_id,
+        creator_id=current_user.id,
+        featured_type=featured_type,
+        duration_days=duration_days,
+        cost_credits=total_cost,
+        end_date=end_date
+    )
+    
+    await db.featured_listings.insert_one(featured_listing.dict())
+    
+    # Deduct credits
+    await db.users.update_one(
+        {"id": current_user.id},
+        {"$inc": {"subscription.credits_remaining": -total_cost}}
+    )
+    
+    # Create transaction record
+    transaction = TokenTransaction(
+        user_id=current_user.id,
+        transaction_type="featured_listing",
+        amount=total_cost,
+        description=f"Featured listing ({featured_type}) for {duration_days} days"
+    )
+    await db.token_transactions.insert_one(transaction.dict())
+    
+    return {
+        "success": True,
+        "featured_listing": featured_listing.dict(),
+        "message": f"Service featured on {featured_type} for {duration_days} days"
+    }
+
+@api_router.get("/services/featured")
+async def get_featured_services():
+    """Get currently featured services"""
+    db = get_database()
+    
+    current_time = datetime.utcnow()
+    
+    featured_listings = await db.featured_listings.find({
+        "status": "active",
+        "end_date": {"$gte": current_time}
+    }).to_list(length=None)
+    
+    # Get service details for featured items
+    featured_services = []
+    for listing in featured_listings:
+        service = await db.services.find_one({"id": listing["service_id"]})
+        if service:
+            featured_services.append({
+                "service": Service(**service),
+                "featured_type": listing["featured_type"],
+                "end_date": listing["end_date"]
+            })
+    
+    return featured_services
+
+# ============= GAMIFICATION SYSTEM =============
+
+@api_router.get("/achievements")
+async def get_achievements():
+    """Get all available achievements"""
+    achievements = [
+        Achievement(
+            name="First Sale",
+            description="Complete your first order as a creator",
+            icon="🎉",
+            criteria={"orders_completed": 1},
+            reward_credits=50,
+            category="sales"
+        ),
+        Achievement(
+            name="Rising Star",
+            description="Earn 5-star rating on 10 orders",
+            icon="⭐",
+            criteria={"five_star_orders": 10},
+            reward_credits=100,
+            category="quality"
+        ),
+        Achievement(
+            name="Speed Demon",
+            description="Complete 5 orders in 24 hours",
+            icon="⚡",
+            criteria={"fast_completions": 5},
+            reward_credits=150,
+            category="speed"
+        ),
+        Achievement(
+            name="Community Favorite",
+            description="Get 100 total reviews",
+            icon="💖",
+            criteria={"total_reviews": 100},
+            reward_credits=200,
+            category="engagement"
+        ),
+        Achievement(
+            name="Master Creator",
+            description="Earn $1000 in total revenue",
+            icon="👑",
+            criteria={"total_revenue": 10000},  # 10000 credits = $1000
+            reward_credits=500,
+            category="revenue"
+        )
+    ]
+    
+    return achievements
+
+@api_router.get("/users/{user_id}/achievements")
+async def get_user_achievements(
+    user_id: str,
+    current_user: UserProfile = Depends(get_current_user_session)
+):
+    """Get user's unlocked achievements"""
+    if user_id != current_user.id and current_user.role != UserRole.admin:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    db = get_database()
+    
+    user_achievements = await db.user_achievements.find({"user_id": user_id}).to_list(length=None)
+    achievements = await get_achievements()
+    
+    unlocked_achievements = []
+    for ua in user_achievements:
+        achievement = next((a for a in achievements if a.id == ua["achievement_id"]), None)
+        if achievement:
+            unlocked_achievements.append({
+                "achievement": achievement,
+                "unlocked_at": ua["unlocked_at"]
+            })
+    
+    return unlocked_achievements
+
+@api_router.post("/users/check-achievements")
+async def check_and_unlock_achievements(
+    current_user: UserProfile = Depends(get_current_user_session)
+):
+    """Check and unlock new achievements for user"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    db = get_database()
+    
+    # Get user stats
+    user_orders = await db.orders.find({"creator_id": current_user.id, "status": OrderStatus.completed}).to_list(length=None)
+    user_ratings = await db.ratings.find({"reviewee_id": current_user.id}).to_list(length=None)
+    
+    orders_completed = len(user_orders)
+    five_star_orders = len([r for r in user_ratings if r.get("rating") == 5])
+    total_reviews = len(user_ratings)
+    total_revenue = sum(order.get("total_amount", 0) for order in user_orders)
+    
+    # Check achievements
+    achievements = await get_achievements()
+    unlocked_achievements = []
+    
+    for achievement in achievements:
+        # Check if already unlocked
+        existing = await db.user_achievements.find_one({
+            "user_id": current_user.id,
+            "achievement_id": achievement.id
+        })
+        
+        if existing:
+            continue
+        
+        # Check criteria
+        criteria_met = False
+        if achievement.category == "sales" and orders_completed >= achievement.criteria.get("orders_completed", 0):
+            criteria_met = True
+        elif achievement.category == "quality" and five_star_orders >= achievement.criteria.get("five_star_orders", 0):
+            criteria_met = True
+        elif achievement.category == "engagement" and total_reviews >= achievement.criteria.get("total_reviews", 0):
+            criteria_met = True
+        elif achievement.category == "revenue" and total_revenue >= achievement.criteria.get("total_revenue", 0):
+            criteria_met = True
+        
+        if criteria_met:
+            # Unlock achievement
+            user_achievement = UserAchievement(
+                user_id=current_user.id,
+                achievement_id=achievement.id
+            )
+            await db.user_achievements.insert_one(user_achievement.dict())
+            
+            # Award credits
+            await db.users.update_one(
+                {"id": current_user.id},
+                {"$inc": {"subscription.credits_remaining": achievement.reward_credits}}
+            )
+            
+            unlocked_achievements.append(achievement)
+    
+    return {
+        "unlocked_achievements": unlocked_achievements,
+        "message": f"Unlocked {len(unlocked_achievements)} new achievements!"
+    }
+
+# ============= LIVE CHAT SYSTEM =============
+
+@api_router.get("/conversations")
+async def get_user_conversations(
+    current_user: UserProfile = Depends(get_current_user_session)
+):
+    """Get user's conversations"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    db = get_database()
+    
+    conversations = await db.conversations.find({
+        "participants": current_user.id,
+        "status": "active"
+    }).sort([("last_message_at", -1)]).to_list(length=50)
+    
+    return conversations
+
+@api_router.post("/conversations")
+async def create_conversation(
+    recipient_id: str,
+    order_id: Optional[str] = None,
+    current_user: UserProfile = Depends(get_current_user_session)
+):
+    """Create new conversation"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    db = get_database()
+    
+    # Check if conversation already exists
+    existing = await db.conversations.find_one({
+        "participants": {"$all": [current_user.id, recipient_id]},
+        "order_id": order_id
+    })
+    
+    if existing:
+        return Conversation(**existing)
+    
+    conversation = Conversation(
+        participants=[current_user.id, recipient_id],
+        order_id=order_id
+    )
+    
+    await db.conversations.insert_one(conversation.dict())
+    return conversation
+
+@api_router.post("/conversations/{conversation_id}/messages")
+async def send_message(
+    conversation_id: str,
+    message: str,
+    current_user: UserProfile = Depends(get_current_user_session)
+):
+    """Send message in conversation"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    db = get_database()
+    
+    # Verify user is part of conversation
+    conversation = await db.conversations.find_one({
+        "id": conversation_id,
+        "participants": current_user.id
+    })
+    
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    
+    # Get recipient
+    recipient_id = next(p for p in conversation["participants"] if p != current_user.id)
+    
+    chat_message = ChatMessage(
+        conversation_id=conversation_id,
+        sender_id=current_user.id,
+        recipient_id=recipient_id,
+        message=message
+    )
+    
+    await db.chat_messages.insert_one(chat_message.dict())
+    
+    # Update conversation last message time
+    await db.conversations.update_one(
+        {"id": conversation_id},
+        {"$set": {"last_message_at": datetime.utcnow()}}
+    )
+    
+    return chat_message
+
+@api_router.get("/conversations/{conversation_id}/messages")
+async def get_conversation_messages(
+    conversation_id: str,
+    current_user: UserProfile = Depends(get_current_user_session)
+):
+    """Get messages in conversation"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    db = get_database()
+    
+    # Verify user is part of conversation
+    conversation = await db.conversations.find_one({
+        "id": conversation_id,
+        "participants": current_user.id
+    })
+    
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    
+    messages = await db.chat_messages.find({
+        "conversation_id": conversation_id
+    }).sort([("timestamp", 1)]).to_list(length=100)
+    
+    return [ChatMessage(**msg) for msg in messages]
+
 # Include all routes
 app.include_router(api_router)
 

@@ -248,9 +248,6 @@ class WayaCreateAPITester:
     
     def test_create_order(self):
         """Test creating an order with milestone payments"""
-        # Test the endpoint structure first - it seems to expect specific parameter structure
-        # Let's test without authentication to see if we get 401 or parameter validation error
-        
         # Use a dummy service ID for testing
         dummy_service_id = str(uuid.uuid4())
         
@@ -265,7 +262,7 @@ class WayaCreateAPITester:
         expected_status = 401 if not self.session_token else 404  # 404 for non-existent service
         
         success, response = self.run_test(
-            "Create Order Endpoint Structure Test",
+            "Create Order with Milestones (Auth Required)",
             "POST",
             "api/orders",
             expected_status,
@@ -275,6 +272,9 @@ class WayaCreateAPITester:
         
         if success and expected_status == 401:
             print("✅ Order creation properly requires authentication")
+        elif success and response.get('id'):
+            self.created_order_id = response['id']
+            print(f"✅ Created order with ID: {self.created_order_id}")
         
         return success, response
 

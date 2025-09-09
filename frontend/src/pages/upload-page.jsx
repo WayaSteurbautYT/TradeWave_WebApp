@@ -39,7 +39,7 @@ export function UploadPage() {
   const contentTypes = [
     { value: "video", label: "Video Tutorial", icon: FileVideo, color: "text-red-500" },
     { value: "course", label: "Complete Course", icon: BookOpen, color: "text-blue-500" },
-    { value: "3d_model", label: "3D Model/Project", icon: File3D, color: "text-purple-500" },
+    { value: "3d_model", label: "3D Model/Project", icon: FileText, color: "text-purple-500" },
     { value: "template", label: "Design Template", icon: FileImage, color: "text-green-500" }
   ]
 

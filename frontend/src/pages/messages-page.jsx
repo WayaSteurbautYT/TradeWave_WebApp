@@ -408,23 +408,28 @@ export function MessagesPage() {
                 <CardHeader className="pb-3 border-b">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src={selectedConversation.participant.avatar} />
-                        <AvatarFallback className="bg-gradient-gaming text-white">
-                          {selectedConversation.participant.name.charAt(0)}
-                        </AvatarFallback>
-                      </Avatar>
+                      <div className="relative">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={selectedConversation.other_user.avatar} />
+                          <AvatarFallback className="bg-gradient-gaming text-white">
+                            {selectedConversation.other_user.name.charAt(0)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className={`absolute -bottom-1 -right-1 w-3 h-3 ${getStatusColor(selectedConversation.other_user.status)} rounded-full border-2 border-white`} />
+                      </div>
                       <div>
                         <div className="flex items-center space-x-2">
-                          <h3 className="font-semibold">{selectedConversation.participant.name}</h3>
-                          {selectedConversation.participant.verified && (
+                          <h3 className="font-semibold">{selectedConversation.other_user.name}</h3>
+                          {selectedConversation.other_user.verified && (
                             <Badge className="text-xs bg-blue-500">✓</Badge>
                           )}
-                          {selectedConversation.participant.online && (
-                            <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">
-                              Online
-                            </Badge>
-                          )}
+                          <Badge variant="secondary" className={`text-xs capitalize ${
+                            selectedConversation.other_user.status === 'online' ? 'bg-green-100 text-green-800' :
+                            selectedConversation.other_user.status === 'away' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {selectedConversation.other_user.status}
+                          </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
                           Project: {selectedConversation.project.title}

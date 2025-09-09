@@ -26,6 +26,8 @@ import { SearchPage } from "@/pages/search-page";
 import { SettingsPage } from "@/pages/settings-page";
 import { TokensPage } from "@/pages/tokens-page";
 import { OrdersPage } from "@/pages/orders-page";
+import { AnalyticsPage } from "@/pages/analytics-page";
+import { AchievementsPage } from "@/pages/achievements-page";
 
 function AppRoutes() {
   const location = useLocation();

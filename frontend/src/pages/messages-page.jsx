@@ -267,12 +267,18 @@ export function MessagesPage() {
   return (
     <div className="container py-8">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2">
-          💬 Messages
+      <div className="text-center mb-8">
+        <div className="flex justify-center mb-4">
+          <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center animate-gaming-pulse">
+            <MessageSquare className="h-8 w-8 text-white" />
+          </div>
+        </div>
+        <h1 className="text-4xl md:text-5xl font-bold mb-4">
+          💬 Messages 
+          <span className="gradient-gaming bg-clip-text text-transparent"> Hub</span>
         </h1>
-        <p className="text-muted-foreground">
-          Communicate with creators and clients about your projects
+        <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+          Stay connected with your clients and creators in real-time
         </p>
       </div>
 

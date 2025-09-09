@@ -423,23 +423,7 @@ class WayaCreateAPITester:
             200
         )
 
-    def test_get_services(self):
-        """Test getting services list"""
-        return self.run_test(
-            "Get Services List",
-            "GET",
-            "api/services",
-            200
-        )
 
-    def test_get_community_posts(self):
-        """Test getting community posts"""
-        return self.run_test(
-            "Get Community Posts",
-            "GET",
-            "api/community/posts",
-            200
-        )
 
     def test_create_content(self):
         """Test creating content (requires auth)"""

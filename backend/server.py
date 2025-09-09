@@ -76,6 +76,36 @@ app = FastAPI(
 
 api_router = APIRouter(prefix="/api")
 
+# Health check endpoint (without /api prefix for load balancers)
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for production monitoring"""
+    try:
+        # Test database connection
+        db = get_database()
+        await db.command('ping')
+        
+        return {
+            "status": "healthy",
+            "timestamp": datetime.utcnow().isoformat(),
+            "services": {
+                "database": "connected",
+                "api": "running"
+            }
+        }
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        raise HTTPException(status_code=503, detail="Service unhealthy")
+
+@app.get("/")
+async def root():
+    """Root endpoint"""
+    return {
+        "message": "WayaCreate API",
+        "version": "1.0.0",
+        "status": "running"
+    }
+
 # Environment validation
 required_env_vars = ['MONGO_URL']
 missing_vars = [var for var in required_env_vars if not os.environ.get(var)]

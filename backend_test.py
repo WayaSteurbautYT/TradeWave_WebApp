@@ -252,11 +252,9 @@ class WayaCreateAPITester:
         dummy_service_id = str(uuid.uuid4())
         
         test_order_data = {
-            "order_data": {
-                "service_id": dummy_service_id,
-                "package_type": "standard",
-                "requirements": "I need a modern logo for my tech startup. The company is called 'InnovateTech' and we focus on AI solutions for businesses."
-            }
+            "service_id": dummy_service_id,
+            "package_type": "standard",
+            "requirements": "I need a modern logo for my tech startup. The company is called 'InnovateTech' and we focus on AI solutions for businesses."
         }
         
         expected_status = 401 if not self.session_token else 404  # 404 for non-existent service

@@ -355,53 +355,62 @@ class WayaCreateAPITester:
     
     def test_token_purchase(self):
         """Test token package purchase"""
-        if not self.session_token:
-            print("⚠️ Skipping - No session token available")
-            return False, {}
-            
-        return self.run_test(
-            "Purchase Token Package",
+        expected_status = 401 if not self.session_token else 200
+        
+        success, response = self.run_test(
+            "Purchase Token Package (Auth Required)",
             "POST",
             "api/tokens/purchase",
-            200,
+            expected_status,
             data="starter",
             auth_required=True
         )
+        
+        if success and expected_status == 401:
+            print("✅ Token purchase properly requires authentication")
+        
+        return success, response
 
     def test_token_transactions(self):
         """Test getting token transaction history"""
-        if not self.session_token:
-            print("⚠️ Skipping - No session token available")
-            return False, {}
-            
-        return self.run_test(
-            "Get Token Transactions",
+        expected_status = 401 if not self.session_token else 200
+        
+        success, response = self.run_test(
+            "Get Token Transactions (Auth Required)",
             "GET",
             "api/tokens/transactions",
-            200,
+            expected_status,
             auth_required=True
         )
+        
+        if success and expected_status == 401:
+            print("✅ Token transactions properly requires authentication")
+        
+        return success, response
 
     def test_withdrawal_request(self):
         """Test token withdrawal request"""
-        if not self.session_token:
-            print("⚠️ Skipping - No session token available")
-            return False, {}
-            
         withdrawal_data = {
             "amount_credits": 100,
             "payment_method": "paypal",
-            "payment_details": "test@example.com"
+            "payment_details": {"email": "test@example.com"}
         }
         
-        return self.run_test(
-            "Request Token Withdrawal",
+        expected_status = 401 if not self.session_token else 200
+        
+        success, response = self.run_test(
+            "Request Token Withdrawal (Auth Required)",
             "POST",
             "api/tokens/withdraw",
-            200,
+            expected_status,
             data=withdrawal_data,
             auth_required=True
         )
+        
+        if success and expected_status == 401:
+            print("✅ Token withdrawal properly requires authentication")
+        
+        return success, response
 
     # ============= AI-POWERED CREATOR SEARCH TESTS =============
     

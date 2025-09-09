@@ -71,7 +71,10 @@
   "scripts": {
     "start": "craco start",
     "build": "craco build",
-    "test": "craco test"
+    "build:prod": "NODE_ENV=production craco build",
+    "test": "craco test",
+    "eject": "react-scripts eject",
+    "analyze": "npm run build && npx serve -s build"
   },
   "browserslist": {
     "production": [

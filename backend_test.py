@@ -257,7 +257,7 @@ class WayaCreateAPITester:
             "requirements": "I need a modern logo for my tech startup. The company is called 'InnovateTech' and we focus on AI solutions for businesses."
         }
         
-        expected_status = 401 if not self.session_token else 404  # 404 for non-existent service
+        expected_status = 422 if not self.session_token else 404  # 422 for parameter validation error when not authenticated
         
         success, response = self.run_test(
             "Create Order with Milestones (Auth Required)",

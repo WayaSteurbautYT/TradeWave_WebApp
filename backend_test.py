@@ -117,12 +117,12 @@ class WayaCreateAPITester:
 
     def test_get_current_user(self):
         """Test getting current user profile"""
-        if not self.token:
-            print("⚠️ Skipping - No auth token available")
+        if not self.session_token:
+            print("⚠️ Skipping - No session token available")
             return False, {}
             
         return self.run_test(
-            "Get Current User",
+            "Get Current User Profile",
             "GET",
             "api/auth/me",
             200,

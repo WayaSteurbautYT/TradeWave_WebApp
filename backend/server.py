@@ -141,9 +141,6 @@ async def add_security_headers(request: Request, call_next):
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     return response
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
 # ============= SUBSCRIPTION-BASED AUTHENTICATION =============
 
 async def get_current_user_session(

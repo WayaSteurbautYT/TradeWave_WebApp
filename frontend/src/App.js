@@ -54,6 +54,7 @@ function AppRoutes() {
       <Route path="/messages" element={<MessagesPage />} />
       <Route path="/search" element={<SearchPage />} />
       <Route path="/settings" element={<SettingsPage />} />
+      <Route path="/tokens" element={<TokensPage />} />
     </Routes>
   );
 }

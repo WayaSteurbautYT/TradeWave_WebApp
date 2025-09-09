@@ -33,9 +33,13 @@ const API = `${BACKEND_URL}/api`
 
 export function MessagesPage() {
   const { user, isAuthenticated } = useAuth()
+  const [conversations, setConversations] = useState([])
   const [selectedConversation, setSelectedConversation] = useState(null)
+  const [messages, setMessages] = useState([])
   const [newMessage, setNewMessage] = useState("")
+  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
+  const messagesEndRef = useRef(null)
 
   // Mock conversations data
   const conversations = [

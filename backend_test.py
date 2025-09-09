@@ -92,24 +92,26 @@ class WayaCreateAPITester:
             200
         )
 
-    def test_register_user(self):
-        """Test user registration"""
-        test_data = {
-            "email": f"test_{datetime.now().strftime('%H%M%S')}@example.com",
-            "display_name": f"Test User {datetime.now().strftime('%H%M%S')}",
-            "role": "viewer"
-        }
+    def test_emergent_auth_login(self):
+        """Test Emergent Agent OAuth login simulation"""
+        # Simulate a valid session ID for testing
+        test_session_id = "test_session_" + str(uuid.uuid4())[:8]
+        
         success, response = self.run_test(
-            "User Registration",
+            "Emergent Agent OAuth Login",
             "POST",
-            "api/auth/register",
+            "api/auth/emergentagent-login",
             200,
-            data=test_data
+            data=test_session_id
         )
         
-        if success and 'access_token' in response:
-            self.token = response['access_token']
-            print(f"✅ Got access token for future tests")
+        if success and response.get('success'):
+            # Extract session token from response cookies if available
+            print(f"✅ Login successful for user: {response.get('user', {}).get('display_name', 'Unknown')}")
+            self.current_user = response.get('user')
+            # In a real scenario, we'd get the session token from cookies
+            # For testing, we'll simulate having a valid session
+            self.session_token = "test_session_token_" + str(uuid.uuid4())[:16]
             return True, response
         return success, response
 

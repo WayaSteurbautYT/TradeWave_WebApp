@@ -512,13 +512,9 @@ export function MessagesPage() {
                         placeholder="Type your message..."
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}
-                        className="min-h-[80px] resize-none"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && !e.shiftKey) {
-                            e.preventDefault()
-                            sendMessage()
-                          }
-                        }}
+                        onKeyPress={handleKeyPress}
+                        className="min-h-[40px] max-h-[120px] resize-none"
+                        rows="1"
                       />
                     </div>
                     <div className="flex flex-col space-y-2">

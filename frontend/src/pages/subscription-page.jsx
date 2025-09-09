@@ -24,7 +24,11 @@ const BACKEND_URL = process.env.REACT_APP_BACKEND_URL
 const API = `${BACKEND_URL}/api`
 
 export function SubscriptionPage() {
-  const { user, isAuthenticated, getCreditsRemaining } = useAuth()
+  const { user, isAuthenticated } = useAuth()
+  
+  const getCreditsRemaining = () => {
+    return user?.subscription?.credits_remaining || 0
+  }
   const [plans, setPlans] = useState([])
   const [loading, setLoading] = useState(true)
 

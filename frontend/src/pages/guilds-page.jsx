@@ -37,7 +37,7 @@ import {
   Briefcase,
   Sword,
   Gem,
-  Fire,
+  Flame,
   Sparkles
 } from "lucide-react"
 

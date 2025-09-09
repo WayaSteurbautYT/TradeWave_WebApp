@@ -487,6 +487,20 @@ export function TokensPage() {
     )
   }
 
+  if (!stripePromise) {
+    return (
+      <div className="container py-20">
+        <div className="text-center max-w-md mx-auto">
+          <Coins className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+          <h1 className="text-2xl font-bold mb-4">Token Management</h1>
+          <p className="text-muted-foreground mb-6">
+            Payment system is currently unavailable. Please try again later.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <Elements stripe={stripePromise}>
       <div className="container py-8">

@@ -76,7 +76,7 @@ export function GuildsPage() {
     { level: 5, name: "Skilled Guild", color: "text-green-500", icon: Star },
     { level: 10, name: "Expert Guild", color: "text-blue-500", icon: Trophy },
     { level: 15, name: "Master Guild", color: "text-purple-500", icon: Crown },
-    { level: 20, name: "Legendary Guild", color: "text-orange-500", icon: Gem }
+    { level: 20, name: "Legendary Guild", color: "text-orange-500", icon: Sparkles }
   ]
 
   useEffect(() => {

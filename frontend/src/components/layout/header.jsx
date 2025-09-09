@@ -33,7 +33,10 @@ import {
   ShoppingBag,
   Briefcase,
   MessageSquare,
-  Zap
+  Zap,
+  TrendingUp,
+  Award,
+  ShoppingCart
 } from "lucide-react"
 import { useTheme } from "@/components/theme-provider"
 import { useAuth } from "@/contexts/AuthContext"

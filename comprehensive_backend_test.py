@@ -108,14 +108,7 @@ class WayaCreateComprehensiveAPITester:
 
     def test_track_user_activity(self):
         """Test POST /api/analytics/track - User activity tracking"""
-        activity_data = {
-            "activity_type": "content_downloaded",
-            "details": {
-                "content_id": str(uuid.uuid4()),
-                "content_title": "Test Gaming Tutorial"
-            }
-        }
-        
+        # The endpoint expects query parameters, not JSON body
         expected_status = 401 if not self.session_token else 200
         
         success, response = self.run_test(
@@ -123,7 +116,10 @@ class WayaCreateComprehensiveAPITester:
             "POST",
             "api/analytics/track",
             expected_status,
-            data=activity_data,
+            params={
+                "activity_type": "content_downloaded",
+                "details": {"content_id": str(uuid.uuid4())}
+            },
             auth_required=True
         )
         

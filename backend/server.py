@@ -466,6 +466,414 @@ async def create_rating(
     
     return rating
 
+# ============= SERVICES & MARKETPLACE SYSTEM =============
+
+@api_router.get("/services", response_model=List[Service])
+async def get_services(
+    page: int = 1,
+    limit: int = 20,
+    category: Optional[str] = None,
+    tags: Optional[str] = None,
+    min_price: Optional[int] = None,
+    max_price: Optional[int] = None,
+    search: Optional[str] = None,
+    sort_by: str = "rating"
+):
+    """Get all services with filtering"""
+    db = get_database()
+    
+    query = {"status": ServiceStatus.active}
+    if category:
+        query["category"] = category
+    if min_price is not None or max_price is not None:
+        price_query = {}
+        if min_price is not None:
+            price_query["$gte"] = min_price
+        if max_price is not None:
+            price_query["$lte"] = max_price
+        query["packages.basic.price"] = price_query
+    if tags:
+        tag_list = tags.split(",")
+        query["tags"] = {"$in": tag_list}
+    if search:
+        query["$or"] = [
+            {"title": {"$regex": search, "$options": "i"}},
+            {"description": {"$regex": search, "$options": "i"}},
+            {"tags": {"$in": [search]}}
+        ]
+    
+    sort_options = {
+        "rating": [("rating", -1)],
+        "price_low": [("packages.basic.price", 1)],
+        "price_high": [("packages.basic.price", -1)],
+        "newest": [("created_at", -1)],
+        "popular": [("orders_completed", -1)]
+    }
+    sort = sort_options.get(sort_by, [("rating", -1)])
+    
+    skip = (page - 1) * limit
+    cursor = db.services.find(query).sort(sort).skip(skip).limit(limit)
+    services_list = await cursor.to_list(length=limit)
+    
+    return [Service(**service) for service in services_list]
+
+@api_router.post("/services", response_model=Service)
+async def create_service(
+    service_data: ServiceCreate,
+    current_user: UserProfile = Depends(get_current_user_session)
+):
+    """Create new service"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    if current_user.role == UserRole.viewer:
+        raise HTTPException(status_code=403, detail="Only creators can create services")
+    
+    db = get_database()
+    
+    service = Service(
+        **service_data.dict(),
+        creator_id=current_user.id
+    )
+    
+    await db.services.insert_one(service.dict())
+    return service
+
+@api_router.get("/services/{service_id}", response_model=Service)
+async def get_service(service_id: str):
+    """Get specific service details"""
+    db = get_database()
+    service = await db.services.find_one({"id": service_id})
+    
+    if not service:
+        raise HTTPException(status_code=404, detail="Service not found")
+    
+    return Service(**service)
+
+# ============= ENHANCED ORDER SYSTEM WITH MILESTONES =============
+
+@api_router.post("/orders", response_model=EnhancedOrder)
+async def create_order(
+    order_data: OrderCreate,
+    milestones: Optional[List[Milestone]] = None,
+    current_user: UserProfile = Depends(get_current_user_session)
+):
+    """Create new order with optional milestone payments"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    db = get_database()
+    
+    # Get service details
+    service = await db.services.find_one({"id": order_data.service_id})
+    if not service:
+        raise HTTPException(status_code=404, detail="Service not found")
+    
+    package = service["packages"].get(order_data.package_type)
+    if not package:
+        raise HTTPException(status_code=400, detail="Invalid package type")
+    
+    total_amount = package["price"]
+    
+    # Check if user has enough credits
+    if current_user.subscription.credits_remaining < total_amount:
+        raise HTTPException(status_code=400, detail="Insufficient credits")
+    
+    order = EnhancedOrder(
+        client_id=current_user.id,
+        creator_id=service["creator_id"],
+        service_id=order_data.service_id,
+        package_type=order_data.package_type,
+        total_amount=total_amount,
+        requirements=order_data.requirements,
+        milestones=milestones or [],
+        has_milestones=bool(milestones),
+        escrow_amount=total_amount
+    )
+    
+    await db.orders.insert_one(order.dict())
+    
+    # Hold credits in escrow
+    await db.users.update_one(
+        {"id": current_user.id},
+        {"$inc": {"subscription.credits_remaining": -total_amount}}
+    )
+    
+    # Create transaction record
+    transaction = TokenTransaction(
+        user_id=current_user.id,
+        transaction_type="escrow",
+        amount=total_amount,
+        description=f"Order #{order.id[:8]} - {service['title']}"
+    )
+    await db.token_transactions.insert_one(transaction.dict())
+    
+    return order
+
+@api_router.get("/orders", response_model=List[EnhancedOrder])
+async def get_user_orders(
+    current_user: UserProfile = Depends(get_current_user_session)
+):
+    """Get user's orders (as client or creator)"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    db = get_database()
+    
+    query = {
+        "$or": [
+            {"client_id": current_user.id},
+            {"creator_id": current_user.id}
+        ]
+    }
+    
+    cursor = db.orders.find(query).sort([("created_at", -1)])
+    orders_list = await cursor.to_list(length=None)
+    
+    return [EnhancedOrder(**order) for order in orders_list]
+
+@api_router.put("/orders/{order_id}/status")
+async def update_order_status(
+    order_id: str,
+    new_status: OrderStatus,
+    current_user: UserProfile = Depends(get_current_user_session)
+):
+    """Update order status"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    db = get_database()
+    
+    order = await db.orders.find_one({"id": order_id})
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    # Check permissions
+    if order["creator_id"] != current_user.id and order["client_id"] != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    # Handle completion and payment release
+    if new_status == OrderStatus.completed and order["status"] == OrderStatus.delivered:
+        # Release payment to creator
+        await db.users.update_one(
+            {"id": order["creator_id"]},
+            {"$inc": {"subscription.credits_remaining": order["escrow_amount"], "total_earned": order["escrow_amount"]}}
+        )
+        
+        # Update client spending
+        await db.users.update_one(
+            {"id": order["client_id"]},
+            {"$inc": {"total_spent": order["escrow_amount"]}}
+        )
+        
+        # Create earning transaction
+        transaction = TokenTransaction(
+            user_id=order["creator_id"],
+            transaction_type="earning",
+            amount=order["escrow_amount"],
+            description=f"Payment for order #{order_id[:8]}"
+        )
+        await db.token_transactions.insert_one(transaction.dict())
+    
+    await db.orders.update_one(
+        {"id": order_id},
+        {"$set": {"status": new_status, "updated_at": datetime.utcnow()}}
+    )
+    
+    return {"success": True, "message": f"Order status updated to {new_status}"}
+
+@api_router.post("/orders/{order_id}/milestones/{milestone_id}/approve")
+async def approve_milestone(
+    order_id: str,
+    milestone_id: str,
+    current_user: UserProfile = Depends(get_current_user_session)
+):
+    """Approve milestone and release payment"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    db = get_database()
+    
+    order = await db.orders.find_one({"id": order_id})
+    if not order or order["client_id"] != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    # Find and update milestone
+    milestones = order.get("milestones", [])
+    milestone_found = False
+    
+    for milestone in milestones:
+        if milestone["id"] == milestone_id:
+            milestone["status"] = MilestoneStatus.approved
+            milestone["updated_at"] = datetime.utcnow()
+            milestone_found = True
+            
+            # Release milestone payment
+            await db.users.update_one(
+                {"id": order["creator_id"]},
+                {"$inc": {"subscription.credits_remaining": milestone["amount"]}}
+            )
+            break
+    
+    if not milestone_found:
+        raise HTTPException(status_code=404, detail="Milestone not found")
+    
+    await db.orders.update_one(
+        {"id": order_id},
+        {"$set": {"milestones": milestones, "updated_at": datetime.utcnow()}}
+    )
+    
+    return {"success": True, "message": "Milestone approved and payment released"}
+
+# ============= TOKEN PURCHASE & WITHDRAWAL SYSTEM =============
+
+@api_router.post("/tokens/purchase")
+async def purchase_tokens(
+    package_id: str,
+    current_user: UserProfile = Depends(get_current_user_session)
+):
+    """Purchase token packages with Stripe"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    token_packages = {
+        "starter": {"credits": 100, "price": 9.99, "bonus": 0},
+        "pro": {"credits": 500, "price": 39.99, "bonus": 50},
+        "business": {"credits": 1000, "price": 69.99, "bonus": 150},
+        "enterprise": {"credits": 2500, "price": 149.99, "bonus": 500}
+    }
+    
+    package = token_packages.get(package_id)
+    if not package:
+        raise HTTPException(status_code=400, detail="Invalid package")
+    
+    try:
+        # Create Stripe payment intent
+        intent = stripe.PaymentIntent.create(
+            amount=int(package["price"] * 100),  # Convert to cents
+            currency='usd',
+            metadata={
+                'user_id': current_user.id,
+                'package_id': package_id,
+                'credits': package["credits"] + package["bonus"]
+            }
+        )
+        
+        return {
+            "client_secret": intent.client_secret,
+            "package": package
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@api_router.post("/tokens/confirm-purchase")
+async def confirm_token_purchase(
+    payment_intent_id: str,
+    current_user: UserProfile = Depends(get_current_user_session)
+):
+    """Confirm token purchase and add credits"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    try:
+        # Verify payment with Stripe
+        intent = stripe.PaymentIntent.retrieve(payment_intent_id)
+        
+        if intent.status != 'succeeded':
+            raise HTTPException(status_code=400, detail="Payment not completed")
+        
+        credits_to_add = int(intent.metadata.get('credits', 0))
+        package_id = intent.metadata.get('package_id')
+        
+        db = get_database()
+        
+        # Add credits to user
+        await db.users.update_one(
+            {"id": current_user.id},
+            {"$inc": {"subscription.credits_remaining": credits_to_add}}
+        )
+        
+        # Create transaction record
+        transaction = TokenTransaction(
+            user_id=current_user.id,
+            transaction_type="purchase",
+            amount=credits_to_add,
+            usd_amount=intent.amount / 100,
+            description=f"Token purchase - {package_id} package",
+            stripe_payment_intent_id=payment_intent_id
+        )
+        await db.token_transactions.insert_one(transaction.dict())
+        
+        return {
+            "success": True,
+            "credits_added": credits_to_add,
+            "message": f"Successfully added {credits_to_add} credits to your account!"
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@api_router.post("/tokens/withdraw")
+async def request_withdrawal(
+    withdrawal_data: WithdrawalRequest,
+    current_user: UserProfile = Depends(get_current_user_session)
+):
+    """Request token withdrawal to real money"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    # Check minimum withdrawal (equivalent to $10)
+    min_credits = 100
+    if withdrawal_data.amount_credits < min_credits:
+        raise HTTPException(status_code=400, detail=f"Minimum withdrawal is {min_credits} credits")
+    
+    # Check if user has enough credits
+    if current_user.subscription.credits_remaining < withdrawal_data.amount_credits:
+        raise HTTPException(status_code=400, detail="Insufficient credits")
+    
+    # Calculate USD amount (1 credit = $0.10)
+    usd_amount = withdrawal_data.amount_credits * 0.10
+    
+    withdrawal = WithdrawalRequest(
+        user_id=current_user.id,
+        amount_credits=withdrawal_data.amount_credits,
+        amount_usd=usd_amount,
+        payment_method=withdrawal_data.payment_method,
+        payment_details=withdrawal_data.payment_details
+    )
+    
+    db = get_database()
+    await db.withdrawal_requests.insert_one(withdrawal.dict())
+    
+    # Hold credits during withdrawal processing
+    await db.users.update_one(
+        {"id": current_user.id},
+        {"$inc": {"subscription.credits_remaining": -withdrawal_data.amount_credits}}
+    )
+    
+    return {
+        "success": True,
+        "withdrawal_id": withdrawal.id,
+        "amount_usd": usd_amount,
+        "message": "Withdrawal request submitted. Processing takes 3-5 business days."
+    }
+
+@api_router.get("/tokens/transactions")
+async def get_token_transactions(
+    current_user: UserProfile = Depends(get_current_user_session)
+):
+    """Get user's token transaction history"""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    db = get_database()
+    
+    cursor = db.token_transactions.find({"user_id": current_user.id}).sort([("created_at", -1)])
+    transactions = await cursor.to_list(length=50)  # Last 50 transactions
+    
+    return [TokenTransaction(**t) for t in transactions]
+
 # ============= COMPLETE CONTENT SYSTEM =============
 
 @api_router.get("/content", response_model=List[Content])

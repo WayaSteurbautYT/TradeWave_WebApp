@@ -26,7 +26,11 @@ import {
   BarChart3,
   Plus,
   Gamepad2,
-  Youtube
+  Youtube,
+  Play,
+  Palette,
+  Users,
+  ShoppingBag
 } from "lucide-react"
 import { useTheme } from "@/components/theme-provider"
 import { useAuth } from "@/contexts/AuthContext"

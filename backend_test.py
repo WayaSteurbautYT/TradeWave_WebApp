@@ -15,13 +15,16 @@ class WayaCreateAPITester:
         self.created_service_id = None
         self.created_order_id = None
 
-    def run_test(self, name, method, endpoint, expected_status, data=None, auth_required=False):
+    def run_test(self, name, method, endpoint, expected_status, data=None, auth_required=False, cookies=None):
         """Run a single API test"""
         url = f"{self.base_url}/{endpoint}"
         headers = {'Content-Type': 'application/json'}
         
-        if auth_required and self.token:
-            headers['Authorization'] = f'Bearer {self.token}'
+        # Use session-based authentication with cookies
+        if auth_required and self.session_token:
+            if cookies is None:
+                cookies = {}
+            cookies['session_token'] = self.session_token
 
         self.tests_run += 1
         print(f"\n🔍 Testing {name}...")
@@ -29,11 +32,11 @@ class WayaCreateAPITester:
         
         try:
             if method == 'GET':
-                response = requests.get(url, headers=headers, timeout=10)
+                response = requests.get(url, headers=headers, cookies=cookies, timeout=15)
             elif method == 'POST':
-                response = requests.post(url, json=data, headers=headers, timeout=10)
+                response = requests.post(url, json=data, headers=headers, cookies=cookies, timeout=15)
             elif method == 'PUT':
-                response = requests.put(url, json=data, headers=headers, timeout=10)
+                response = requests.put(url, json=data, headers=headers, cookies=cookies, timeout=15)
 
             print(f"Response Status: {response.status_code}")
             

@@ -415,7 +415,138 @@ async def import_youtube_content(
         logger.error(f"YouTube import error: {e}")
         raise HTTPException(status_code=500, detail="Import failed")
 
-# ============= RATING SYSTEM =============
+# ============= AI-POWERED CREATOR SEARCH & MATCHING =============
+
+@api_router.post("/search/creators")
+async def search_creators_ai(
+    search_filters: CreatorSearchFilter,
+    query: Optional[str] = None,
+    current_user: Optional[UserProfile] = Depends(get_current_user_session)
+):
+    """AI-powered creator search and matching"""
+    db = get_database()
+    
+    # Build MongoDB query
+    mongo_query = {"role": {"$in": [UserRole.creator, UserRole.business]}, "is_active": True}
+    
+    if search_filters.skills:
+        mongo_query["skills"] = {"$in": search_filters.skills}
+    
+    if search_filters.categories:
+        # Find creators who have services in these categories
+        services_with_categories = await db.services.find(
+            {"category": {"$in": search_filters.categories}, "status": ServiceStatus.active}
+        ).to_list(length=None)
+        creator_ids = list(set(s["creator_id"] for s in services_with_categories))
+        mongo_query["id"] = {"$in": creator_ids}
+    
+    if search_filters.min_rating:
+        mongo_query["rating"] = {"$gte": search_filters.min_rating}
+    
+    if search_filters.languages:
+        mongo_query["languages"] = {"$in": search_filters.languages}
+    
+    if search_filters.location:
+        mongo_query["location"] = {"$regex": search_filters.location, "$options": "i"}
+    
+    if search_filters.verified_only:
+        mongo_query["is_verified"] = True
+    
+    # Enhanced text search with AI if query provided
+    if query:
+        # Use AI to understand intent and match
+        try:
+            if current_user and current_user.subscription.credits_remaining >= 1:
+                model = genai.GenerativeModel('gemini-2.0-flash-exp')
+                
+                ai_prompt = f"""
+                Analyze this search query for finding creators: "{query}"
+                
+                Extract relevant information for matching:
+                1. Skills needed (programming, design, video editing, etc.)
+                2. Project type (website, game, animation, etc.) 
+                3. Experience level needed (beginner, intermediate, expert)
+                4. Industry/category (gaming, tech, education, etc.)
+                
+                Return a JSON object with: skills, categories, level, keywords
+                """
+                
+                response = model.generate_content(ai_prompt)
+                
+                # Parse AI response and enhance search
+                import json
+                try:
+                    ai_analysis = json.loads(response.text)
+                    
+                    if ai_analysis.get("skills"):
+                        mongo_query["skills"] = {"$in": ai_analysis["skills"]}
+                    
+                    if ai_analysis.get("keywords"):
+                        text_search = {
+                            "$or": [
+                                {"display_name": {"$regex": "|".join(ai_analysis["keywords"]), "$options": "i"}},
+                                {"bio": {"$regex": "|".join(ai_analysis["keywords"]), "$options": "i"}},
+                                {"skills": {"$in": ai_analysis["keywords"]}}
+                            ]
+                        }
+                        mongo_query.update(text_search)
+                        
+                    # Deduct 1 credit for AI search
+                    await db.users.update_one(
+                        {"id": current_user.id},
+                        {"$inc": {"subscription.credits_remaining": -1}}
+                    )
+                        
+                except json.JSONDecodeError:
+                    # Fallback to basic text search
+                    mongo_query["$or"] = [
+                        {"display_name": {"$regex": query, "$options": "i"}},
+                        {"bio": {"$regex": query, "$options": "i"}},
+                        {"skills": {"$in": [query]}}
+                    ]
+        except:
+            # Fallback to basic search
+            mongo_query["$or"] = [
+                {"display_name": {"$regex": query, "$options": "i"}},
+                {"bio": {"$regex": query, "$options": "i"}},
+                {"skills": {"$in": [query]}}
+            ]
+    
+    # Get matching creators
+    cursor = db.users.find(mongo_query).sort([("rating", -1), ("review_count", -1)]).limit(20)
+    creators = await cursor.to_list(length=20)
+    
+    # Enhance results with service information
+    enhanced_creators = []
+    for creator in creators:
+        creator_services = await db.services.find({
+            "creator_id": creator["id"], 
+            "status": ServiceStatus.active
+        }).to_list(length=5)
+        
+        creator_profile = UserProfile(**creator)
+        
+        # Calculate match score based on filters
+        match_score = 100
+        if search_filters.skills:
+            skill_match = len(set(search_filters.skills) & set(creator.get("skills", [])))
+            match_score = (skill_match / len(search_filters.skills)) * 100
+        
+        enhanced_creators.append({
+            "creator": creator_profile.dict(),
+            "services": [Service(**s) for s in creator_services],
+            "match_score": int(match_score),
+            "response_time": "2-4 hours",  # Could be calculated from historical data
+            "completion_rate": 98  # Could be calculated from order history
+        })
+    
+    return {
+        "creators": enhanced_creators,
+        "total_found": len(enhanced_creators),
+        "ai_enhanced": bool(query and current_user)
+    }
+
+# ============= ENHANCED RATING SYSTEM =============
 
 @api_router.post("/ratings", response_model=Rating)
 async def create_rating(

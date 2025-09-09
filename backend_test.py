@@ -284,7 +284,7 @@ class WayaCreateAPITester:
             "POST",
             "api/orders",
             expected_status,
-            data={**test_order, "milestones": milestones},
+            data=test_order,  # Remove milestones from main data - they're handled separately
             auth_required=True
         )
         

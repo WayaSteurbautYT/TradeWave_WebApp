@@ -421,6 +421,272 @@ class Team(BaseModel):
     projects: List[str] = []  # Order IDs
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
+# ============= SMART BIDDING SYSTEM =============
+
+class ProjectType(str, Enum):
+    fixed_price = "fixed_price"
+    bidding = "bidding"
+    negotiable = "negotiable"
+
+class BidStatus(str, Enum):
+    active = "active"
+    accepted = "accepted"
+    rejected = "rejected"
+    withdrawn = "withdrawn"
+    expired = "expired"
+
+class ProjectStatus(str, Enum):
+    open = "open"
+    in_progress = "in_progress" 
+    completed = "completed"
+    cancelled = "cancelled"
+    disputed = "disputed"
+
+class BiddingProject(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    client_id: str
+    title: str
+    description: str
+    category: str
+    required_skills: List[str] = []
+    budget_min: Optional[int] = None  # Minimum budget in credits
+    budget_max: Optional[int] = None  # Maximum budget in credits
+    deadline: datetime
+    project_type: ProjectType = ProjectType.bidding
+    status: ProjectStatus = ProjectStatus.open
+    requirements: Dict[str, Any] = {}  # Detailed requirements
+    attachments: List[str] = []
+    tags: List[str] = []
+    featured: bool = False
+    auto_accept_lowest: bool = False  # Auto-accept lowest qualifying bid
+    bid_deadline: datetime
+    min_creator_level: int = 1
+    min_rating: float = 0.0
+    max_bids: int = 50
+    current_bid_count: int = 0
+    winning_bid_id: Optional[str] = None
+    selected_creator_id: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class Bid(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    project_id: str
+    creator_id: str
+    amount: int  # Bid amount in credits
+    delivery_time: int  # Days to complete
+    proposal: str  # Creator's proposal/pitch
+    milestones: List[Dict[str, Any]] = []  # Optional milestone breakdown
+    status: BidStatus = BidStatus.active
+    is_auto_bid: bool = False
+    extras: List[Dict[str, Any]] = []  # Additional services offered
+    questions: List[str] = []  # Questions for the client
+    portfolio_items: List[str] = []  # Relevant portfolio pieces
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    expires_at: Optional[datetime] = None
+
+class BidAnalytics(BaseModel):
+    project_id: str
+    average_bid: float
+    lowest_bid: int
+    highest_bid: int
+    total_bids: int
+    estimated_completion_time: float  # Average delivery time
+    success_prediction: float  # AI prediction of project success
+    recommended_budget: Dict[str, int]  # min, max, optimal
+    trending_skills: List[str]
+    similar_projects_avg_price: int
+
+# Auto-Bidding System
+class AutoBidSettings(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    creator_id: str
+    enabled: bool = True
+    categories: List[str] = []  # Categories to auto-bid on
+    min_budget: int = 50  # Minimum project budget
+    max_budget: int = 5000  # Maximum project budget
+    bid_strategy: str = "competitive"  # competitive, premium, budget
+    markup_percentage: float = 10.0  # % above estimated cost
+    max_concurrent_projects: int = 5
+    auto_proposal_template: str = ""
+    keywords_to_include: List[str] = []
+    keywords_to_exclude: List[str] = []
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+# ============= SKILL TREE SYSTEM =============
+
+class SkillCategory(str, Enum):
+    gaming = "gaming"
+    design = "design"
+    development = "development"
+    content = "content"
+    animation = "animation"
+    audio = "audio"
+    marketing = "marketing"
+
+class SkillNode(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    description: str
+    category: SkillCategory
+    level: int = 1
+    max_level: int = 50
+    xp_required: int = 100
+    prerequisites: List[str] = []  # Other skill IDs required
+    unlock_cost: int = 0  # Credits to unlock
+    benefits: Dict[str, Any] = {}  # Bonuses unlocked
+    icon: str = "⚡"
+    rarity: str = "common"  # common, rare, epic, legendary
+
+class UserSkillProgress(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    skill_id: str
+    current_level: int = 0
+    current_xp: int = 0
+    unlocked_at: Optional[datetime] = None
+    mastered_at: Optional[datetime] = None
+    total_xp_earned: int = 0
+    
+class SkillTree(BaseModel):
+    user_id: str
+    skills: List[UserSkillProgress] = []
+    total_skill_points: int = 0
+    mastered_skills_count: int = 0
+    current_title: str = "Novice Creator"
+    available_skill_points: int = 0
+
+# ============= CREATOR GUILDS SYSTEM =============
+
+class GuildRole(str, Enum):
+    leader = "leader"
+    officer = "officer"
+    member = "member"
+    recruit = "recruit"
+
+class Guild(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    description: str
+    logo_url: Optional[str] = None
+    leader_id: str
+    specializations: List[str] = []  # Main skill areas
+    member_count: int = 1
+    max_members: int = 50
+    level: int = 1
+    xp: int = 0
+    reputation: float = 0.0
+    total_earnings: int = 0
+    completed_projects: int = 0
+    guild_credits: int = 0  # Shared guild treasury
+    is_recruiting: bool = True
+    requirements: Dict[str, Any] = {}  # Join requirements
+    benefits: Dict[str, Any] = {}  # Member benefits
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class GuildMembership(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    guild_id: str
+    user_id: str
+    role: GuildRole = GuildRole.recruit
+    contribution_points: int = 0
+    joined_at: datetime = Field(default_factory=datetime.utcnow)
+    promoted_at: Optional[datetime] = None
+
+class GuildProject(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    guild_id: str
+    project_id: str  # Reference to BiddingProject
+    assigned_members: List[str] = []  # User IDs
+    revenue_share: Dict[str, float] = {}  # Member ID -> percentage
+    status: str = "active"
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+# ============= ADVANCED SECURITY SYSTEM =============
+
+class SecurityLevel(str, Enum):
+    basic = "basic"
+    verified = "verified"
+    premium = "premium"
+    enterprise = "enterprise"
+
+class EscrowTransaction(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    order_id: str
+    project_id: Optional[str] = None
+    payer_id: str
+    payee_id: str
+    amount: int  # Amount in escrow
+    escrow_fee: int  # Platform fee for escrow service
+    status: str = "held"  # held, released, disputed, refunded
+    milestone_id: Optional[str] = None
+    release_conditions: Dict[str, Any] = {}
+    dispute_reason: Optional[str] = None
+    resolution_notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    released_at: Optional[datetime] = None
+
+class FraudAlert(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    alert_type: str  # suspicious_activity, fake_reviews, payment_fraud
+    severity: str = "medium"  # low, medium, high, critical
+    description: str
+    evidence: Dict[str, Any] = {}
+    status: str = "open"  # open, investigating, resolved, false_positive
+    investigated_by: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    resolved_at: Optional[datetime] = None
+
+class UserVerification(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    verification_type: str  # identity, skills, phone, email, business
+    status: str = "pending"  # pending, approved, rejected, expired
+    documents: List[str] = []
+    verification_data: Dict[str, Any] = {}
+    verified_by: Optional[str] = None
+    expires_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    verified_at: Optional[datetime] = None
+
+# ============= AI OFFER SYSTEM =============
+
+class AIOfferType(str, Enum):
+    instant_match = "instant_match"
+    custom_proposal = "custom_proposal"
+    bulk_discount = "bulk_discount"
+    rush_delivery = "rush_delivery"
+
+class AIGeneratedOffer(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    creator_id: str
+    client_id: str
+    project_brief: str
+    offer_type: AIOfferType
+    suggested_price: int
+    estimated_delivery: int  # days
+    confidence_score: float  # AI confidence in the match
+    reasoning: str  # Why AI suggested this offer
+    custom_proposal: str  # AI-generated proposal
+    success_probability: float  # Predicted success rate
+    expires_in_hours: int = 24
+    status: str = "pending"  # pending, accepted, rejected, expired
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    expires_at: datetime
+
+class SmartMatchingCriteria(BaseModel):
+    client_preferences: Dict[str, Any] = {}
+    creator_capabilities: Dict[str, Any] = {}
+    project_complexity: str = "medium"
+    budget_flexibility: float = 0.2  # 20% flexibility
+    timeline_flexibility: float = 0.1  # 10% flexibility
+    quality_priority: float = 0.8  # 80% weight on quality
+    price_priority: float = 0.6  # 60% weight on price
+    speed_priority: float = 0.4  # 40% weight on speed
+
 # Platform Analytics & Live Data Tracking
 class PlatformAnalytics(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))

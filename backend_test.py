@@ -4,7 +4,7 @@ from datetime import datetime
 import json
 
 class TradeWaveAPITester:
-    def __init__(self, base_url="https://shadcn-integration.preview.emergentagent.com"):
+    def __init__(self, base_url="https://wayacreate.preview.emergentagent.com"):
         self.base_url = base_url
         self.token = None
         self.tests_run = 0
@@ -188,7 +188,7 @@ class TradeWaveAPITester:
         
         try:
             response = requests.options(url, headers={
-                'Origin': 'https://shadcn-integration.preview.emergentagent.com',
+                'Origin': 'https://wayacreate.preview.emergentagent.com',
                 'Access-Control-Request-Method': 'GET'
             }, timeout=10)
             

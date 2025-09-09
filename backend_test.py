@@ -296,7 +296,7 @@ class WayaCreateAPITester:
     def test_update_order_status(self):
         """Test updating order status"""
         dummy_order_id = str(uuid.uuid4())
-        expected_status = 401 if not self.session_token else 404  # 404 for non-existent order
+        expected_status = 401 if not self.session_token else 404  # 401 for auth, 404 for non-existent order
         
         success, response = self.run_test(
             "Update Order Status (Auth Required)",

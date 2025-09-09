@@ -196,7 +196,7 @@ class WayaCreateAPITester:
         """Test creating a subscription (Stripe integration)"""
         if not self.session_token:
             print("⚠️ Skipping - No session token available")
-            return False, {}
+            return False, {}, None
             
         cookies = {'session_token': self.session_token} if self.session_token else None
         
@@ -218,7 +218,7 @@ class WayaCreateAPITester:
         """Test AI content generation with Gemini"""
         if not self.session_token:
             print("⚠️ Skipping - No session token available")
-            return False, {}
+            return False, {}, None
             
         cookies = {'session_token': self.session_token} if self.session_token else None
         
@@ -241,7 +241,7 @@ class WayaCreateAPITester:
         """Test YouTube content import"""
         if not self.session_token:
             print("⚠️ Skipping - No session token available")
-            return False, {}
+            return False, {}, None
             
         cookies = {'session_token': self.session_token} if self.session_token else None
         

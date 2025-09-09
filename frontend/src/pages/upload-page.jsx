@@ -12,7 +12,7 @@ import {
   Upload, 
   FileVideo, 
   FileImage, 
-  File3D,
+  FileText,
   BookOpen,
   Gamepad2,
   Palette,

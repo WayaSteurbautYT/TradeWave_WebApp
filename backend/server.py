@@ -544,9 +544,6 @@ async def create_content(
     
     return content
 
-# Include all routes
-app.include_router(api_router)
-
 @api_router.get("/")
 async def root():
     return {
@@ -573,6 +570,9 @@ async def health_check():
         "platform": "WayaCreate Complete",
         "creator": "Waya Steurbaut"
     }
+
+# Include all routes
+app.include_router(api_router)
 
 if __name__ == "__main__":
     import uvicorn

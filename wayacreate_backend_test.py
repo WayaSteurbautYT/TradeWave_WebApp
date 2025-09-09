@@ -121,9 +121,8 @@ class WayaCreateAPITester:
         success, response_data, response = self.run_test(
             "Google OAuth (Emergent Agent Login)",
             "POST",
-            "api/auth/emergentagent-login",
-            200,
-            data={"session_id": test_session_id}
+            f"api/auth/emergentagent-login?session_id={test_session_id}",
+            200
         )
         
         if success and isinstance(response_data, dict):

@@ -301,9 +301,8 @@ class WayaCreateAPITester:
         success, response = self.run_test(
             "Update Order Status (Auth Required)",
             "PUT",
-            f"api/orders/{dummy_order_id}/status",
+            f"api/orders/{dummy_order_id}/status?new_status=in_progress",
             expected_status,
-            data="in_progress",
             auth_required=True
         )
         

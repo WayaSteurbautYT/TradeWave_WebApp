@@ -35,7 +35,6 @@ import {
   AlertCircle,
   MessageSquare,
   Briefcase,
-  Gem,
   Flame,
   Sparkles
 } from "lucide-react"

@@ -2331,6 +2331,30 @@ async def generate_ai_offer(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AI service error: {str(e)}")
 
+# ============= ERROR HANDLERS =============
+
+@app.exception_handler(500)
+async def internal_server_error_handler(request, exc):
+    logger.error(f"Internal server error: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "Internal server error",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    )
+
+@app.exception_handler(404)
+async def not_found_handler(request, exc):
+    return JSONResponse(
+        status_code=404,
+        content={
+            "detail": "Resource not found",
+            "path": str(request.url.path),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    )
+
 # Include all routes
 app.include_router(api_router)
 

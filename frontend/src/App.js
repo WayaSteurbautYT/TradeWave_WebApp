@@ -61,16 +61,18 @@ function App() {
   return (
     <ThemeProvider attribute="class" defaultTheme="light">
       <AuthProvider>
-        <div className="App min-h-screen flex flex-col">
-          <BrowserRouter>
-            <Header />
-            <main className="flex-1">
-              <AppRoutes />
-            </main>
-            <Footer />
-            <Toaster />
-          </BrowserRouter>
-        </div>
+        <TokenProvider>
+          <div className="App min-h-screen flex flex-col">
+            <BrowserRouter>
+              <Header />
+              <main className="flex-1">
+                <AppRoutes />
+              </main>
+              <Footer />
+              <Toaster />
+            </BrowserRouter>
+          </div>
+        </TokenProvider>
       </AuthProvider>
     </ThemeProvider>
   );

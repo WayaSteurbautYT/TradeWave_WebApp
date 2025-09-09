@@ -54,6 +54,7 @@ export function Header() {
     { name: "Design", href: "/design", icon: Palette },
     { name: "Community", href: "/community", icon: Users },
     { name: "Marketplace", href: "/marketplace", icon: ShoppingBag },
+    { name: "Bidding", href: "/bidding", icon: Gavel },
     { name: "Hire", href: "/hire", icon: Briefcase }
   ]
 

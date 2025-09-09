@@ -34,7 +34,7 @@ import {
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL
 const API = `${BACKEND_URL}/api`
 
-const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLIC_KEY)
+const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY)
 
 // Purchase Component
 function TokenPurchaseForm() {

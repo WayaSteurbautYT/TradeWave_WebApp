@@ -524,7 +524,11 @@ export function MessagesPage() {
                       <Button variant="ghost" size="sm">
                         <Smile className="h-4 w-4" />
                       </Button>
-                      <Button onClick={sendMessage} disabled={!newMessage.trim()}>
+                      <Button
+                        onClick={sendMessage}
+                        disabled={!newMessage.trim()}
+                        className="gaming-card"
+                      >
                         <Send className="h-4 w-4" />
                       </Button>
                     </div>

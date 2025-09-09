@@ -243,6 +243,10 @@ export function MessagesPage() {
     }
   }
 
+  const filteredConversations = conversations.filter(conv =>
+    conv.other_user.name.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
   if (!isAuthenticated) {
     return (
       <div className="container py-20">

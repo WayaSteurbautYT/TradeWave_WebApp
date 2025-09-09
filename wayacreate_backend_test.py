@@ -308,7 +308,7 @@ class WayaCreateAPITester:
         """Test rating/review system"""
         if not self.session_token or not self.user_id:
             print("⚠️ Skipping - No session token or user ID available")
-            return False
+            return False, {}, None
             
         cookies = {'session_token': self.session_token} if self.session_token else None
         

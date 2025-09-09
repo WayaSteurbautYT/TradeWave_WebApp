@@ -54,6 +54,17 @@ export function Header() {
     { name: "Hire", href: "/hire", icon: Briefcase }
   ]
 
+  const userNavigation = [
+    { name: "Dashboard", href: "/dashboard", icon: BarChart3 },
+    { name: "Orders", href: "/orders", icon: ShoppingCart },
+    { name: "Analytics", href: "/analytics", icon: TrendingUp },
+    { name: "Achievements", href: "/achievements", icon: Award },
+    { name: "Tokens", href: "/tokens", icon: Coins },
+    { name: "Messages", href: "/messages", icon: MessageSquare },
+    { name: "Profile", href: "/profile", icon: User },
+    { name: "Settings", href: "/settings", icon: Settings }
+  ]
+
   const handleLogout = () => {
     logout()
   }

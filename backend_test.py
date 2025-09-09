@@ -129,14 +129,290 @@ class WayaCreateAPITester:
             auth_required=True
         )
 
-    def test_token_packages(self):
-        """Test getting token packages"""
+    def test_subscription_plans(self):
+        """Test getting subscription plans"""
         return self.run_test(
-            "Get Token Packages",
+            "Get Subscription Plans",
             "GET",
-            "api/tokens/packages",
+            "api/subscriptions/plans",
             200
         )
+
+    # ============= SERVICES & MARKETPLACE TESTS =============
+    
+    def test_get_services(self):
+        """Test getting services list with filtering"""
+        success, response = self.run_test(
+            "Get Services List",
+            "GET",
+            "api/services",
+            200
+        )
+        
+        if success:
+            print(f"✅ Found {len(response)} services")
+        
+        # Test with filters
+        success2, response2 = self.run_test(
+            "Get Services with Category Filter",
+            "GET",
+            "api/services?category=design&sort_by=rating",
+            200
+        )
+        
+        return success and success2, response
+
+    def test_create_service(self):
+        """Test creating a new service"""
+        if not self.session_token:
+            print("⚠️ Skipping - No session token available")
+            return False, {}
+            
+        test_service = {
+            "title": f"Test Design Service {datetime.now().strftime('%H%M%S')}",
+            "description": "Professional logo and branding design service for businesses",
+            "category": "design",
+            "tags": ["logo", "branding", "design", "business"],
+            "packages": {
+                "basic": {
+                    "name": "Basic Logo",
+                    "description": "Simple logo design with 2 revisions",
+                    "price": 50,
+                    "delivery_days": 3,
+                    "revisions": 2,
+                    "features": ["Logo design", "2 revisions", "High-res files"]
+                },
+                "standard": {
+                    "name": "Logo + Brand Kit",
+                    "description": "Logo design with basic brand guidelines",
+                    "price": 100,
+                    "delivery_days": 5,
+                    "revisions": 3,
+                    "features": ["Logo design", "Brand colors", "Typography guide", "3 revisions"]
+                },
+                "premium": {
+                    "name": "Complete Branding",
+                    "description": "Full branding package with all assets",
+                    "price": 200,
+                    "delivery_days": 7,
+                    "revisions": 5,
+                    "features": ["Complete brand identity", "Logo variations", "Brand guidelines", "Business cards", "5 revisions"]
+                }
+            },
+            "gallery_images": ["https://example.com/portfolio1.jpg"],
+            "requirements": ["Business description", "Target audience", "Style preferences"]
+        }
+        
+        success, response = self.run_test(
+            "Create New Service",
+            "POST",
+            "api/services",
+            200,
+            data=test_service,
+            auth_required=True
+        )
+        
+        if success and response.get('id'):
+            self.created_service_id = response['id']
+            print(f"✅ Created service with ID: {self.created_service_id}")
+        
+        return success, response
+
+    def test_get_service_details(self):
+        """Test getting specific service details"""
+        if not self.created_service_id:
+            print("⚠️ Skipping - No service ID available")
+            return False, {}
+            
+        return self.run_test(
+            "Get Service Details",
+            "GET",
+            f"api/services/{self.created_service_id}",
+            200
+        )
+
+    # ============= ORDER SYSTEM WITH MILESTONES TESTS =============
+    
+    def test_create_order(self):
+        """Test creating an order with milestone payments"""
+        if not self.session_token or not self.created_service_id:
+            print("⚠️ Skipping - No session token or service ID available")
+            return False, {}
+            
+        test_order = {
+            "service_id": self.created_service_id,
+            "package_type": "standard",
+            "requirements": "I need a modern logo for my tech startup. The company is called 'InnovateTech' and we focus on AI solutions for businesses."
+        }
+        
+        # Test with milestones
+        milestones = [
+            {
+                "id": str(uuid.uuid4()),
+                "title": "Initial Concept",
+                "description": "First draft of logo concepts",
+                "amount": 30,
+                "due_date": "2025-02-01T00:00:00Z",
+                "status": "pending"
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "title": "Revisions & Finalization",
+                "description": "Final logo with revisions and brand kit",
+                "amount": 70,
+                "due_date": "2025-02-05T00:00:00Z",
+                "status": "pending"
+            }
+        ]
+        
+        success, response = self.run_test(
+            "Create Order with Milestones",
+            "POST",
+            "api/orders",
+            200,
+            data={**test_order, "milestones": milestones},
+            auth_required=True
+        )
+        
+        if success and response.get('id'):
+            self.created_order_id = response['id']
+            print(f"✅ Created order with ID: {self.created_order_id}")
+        
+        return success, response
+
+    def test_get_user_orders(self):
+        """Test getting user's orders"""
+        if not self.session_token:
+            print("⚠️ Skipping - No session token available")
+            return False, {}
+            
+        return self.run_test(
+            "Get User Orders",
+            "GET",
+            "api/orders",
+            200,
+            auth_required=True
+        )
+
+    def test_update_order_status(self):
+        """Test updating order status"""
+        if not self.session_token or not self.created_order_id:
+            print("⚠️ Skipping - No session token or order ID available")
+            return False, {}
+            
+        return self.run_test(
+            "Update Order Status",
+            "PUT",
+            f"api/orders/{self.created_order_id}/status",
+            200,
+            data="in_progress",
+            auth_required=True
+        )
+
+    def test_approve_milestone(self):
+        """Test milestone approval"""
+        if not self.session_token or not self.created_order_id:
+            print("⚠️ Skipping - No session token or order ID available")
+            return False, {}
+            
+        # Use a test milestone ID
+        test_milestone_id = str(uuid.uuid4())
+        
+        return self.run_test(
+            "Approve Milestone",
+            "POST",
+            f"api/orders/{self.created_order_id}/milestones/{test_milestone_id}/approve",
+            200,
+            auth_required=True
+        )
+
+    # ============= TOKEN ECONOMY TESTS =============
+    
+    def test_token_purchase(self):
+        """Test token package purchase"""
+        if not self.session_token:
+            print("⚠️ Skipping - No session token available")
+            return False, {}
+            
+        return self.run_test(
+            "Purchase Token Package",
+            "POST",
+            "api/tokens/purchase",
+            200,
+            data="starter",
+            auth_required=True
+        )
+
+    def test_token_transactions(self):
+        """Test getting token transaction history"""
+        if not self.session_token:
+            print("⚠️ Skipping - No session token available")
+            return False, {}
+            
+        return self.run_test(
+            "Get Token Transactions",
+            "GET",
+            "api/tokens/transactions",
+            200,
+            auth_required=True
+        )
+
+    def test_withdrawal_request(self):
+        """Test token withdrawal request"""
+        if not self.session_token:
+            print("⚠️ Skipping - No session token available")
+            return False, {}
+            
+        withdrawal_data = {
+            "amount_credits": 100,
+            "payment_method": "paypal",
+            "payment_details": "test@example.com"
+        }
+        
+        return self.run_test(
+            "Request Token Withdrawal",
+            "POST",
+            "api/tokens/withdraw",
+            200,
+            data=withdrawal_data,
+            auth_required=True
+        )
+
+    # ============= AI-POWERED CREATOR SEARCH TESTS =============
+    
+    def test_ai_creator_search(self):
+        """Test AI-powered creator search"""
+        search_filters = {
+            "skills": ["design", "branding"],
+            "categories": ["design"],
+            "min_rating": 4.0,
+            "languages": ["English"],
+            "verified_only": False
+        }
+        
+        success1, response1 = self.run_test(
+            "AI Creator Search with Filters",
+            "POST",
+            "api/search/creators",
+            200,
+            data=search_filters
+        )
+        
+        # Test with AI query
+        search_with_query = {
+            **search_filters,
+            "query": "I need a creative designer for my tech startup logo"
+        }
+        
+        success2, response2 = self.run_test(
+            "AI Creator Search with Query",
+            "POST",
+            "api/search/creators?query=logo design expert",
+            200,
+            data=search_with_query
+        )
+        
+        return success1 and success2, response1
 
     def test_get_content(self):
         """Test getting content list"""

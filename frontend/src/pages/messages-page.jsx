@@ -74,64 +74,79 @@ export function MessagesPage() {
       
       // Mock conversations for demo - replace with response.data when API is ready
       const mockConversations = [
-    {
-      id: "1",
-      participant: {
-        name: "Waya Steurbaut",
-        username: "@wayacreate", 
-        avatar: "",
-        online: true,
-        verified: true
-      },
-      lastMessage: {
-        content: "Thanks for the amazing Minecraft tutorial! The castle build was perfect.",
-        timestamp: "2 min ago",
-        unread: true
-      },
-      project: {
-        title: "Epic Castle Build Tutorial",
-        status: "completed"
+        {
+          id: "conv1",
+          participants: [user.id, "creator1"],
+          order_id: "order1",
+          last_message_at: new Date().toISOString(),
+          other_user: {
+            id: "creator1",
+            name: "Waya Steurbaut",
+            username: "@wayacreate",
+            avatar: "",
+            status: "online",
+            verified: true
+          },
+          last_message: "Thanks for the amazing Minecraft tutorial! The castle build was perfect.",
+          unread_count: 2,
+          project: {
+            title: "Epic Castle Build Tutorial",
+            status: "completed"
+          }
+        },
+        {
+          id: "conv2", 
+          participants: [user.id, "creator2"],
+          order_id: "order2",
+          last_message_at: new Date(Date.now() - 3600000).toISOString(),
+          other_user: {
+            id: "creator2",
+            name: "Alex Chen",
+            username: "@blendermaster",
+            avatar: "",
+            status: "away",
+            verified: true
+          },
+          last_message: "I've uploaded the revised 3D model. Let me know what you think!",
+          unread_count: 0,
+          project: {
+            title: "Character 3D Model",
+            status: "in_progress"
+          }
+        },
+        {
+          id: "conv3",
+          participants: [user.id, "client1"],
+          order_id: null,
+          last_message_at: new Date(Date.now() - 7200000).toISOString(),
+          other_user: {
+            id: "client1",
+            name: "Sarah Johnson",
+            username: "@videoeditor",
+            avatar: "",
+            status: "offline",
+            verified: false
+          },
+          last_message: "The video editing service looks great! When can we start?",
+          unread_count: 1,
+          project: {
+            title: "YouTube Intro Video",
+            status: "pending"
+          }
+        }
+      ]
+      
+      setConversations(mockConversations)
+      if (mockConversations.length > 0) {
+        setSelectedConversation(mockConversations[0])
       }
-    },
-    {
-      id: "2",
-      participant: {
-        name: "Alex Chen",
-        username: "@blendermaster",
-        avatar: "",
-        online: false,
-        verified: true
-      },
-      lastMessage: {
-        content: "I've uploaded the revised 3D model. Let me know what you think!",
-        timestamp: "1 hour ago",
-        unread: false
-      },
-      project: {
-        title: "Character 3D Model",
-        status: "in_progress"
-      }
-    },
-    {
-      id: "3",
-      participant: {
-        name: "Sarah Johnson",
-        username: "@videoeditor",
-        avatar: "",
-        online: true,
-        verified: false
-      },
-      lastMessage: {
-        content: "The video editing service looks great! When can we start?",
-        timestamp: "3 hours ago",
-        unread: true
-      },
-      project: {
-        title: "YouTube Intro Video",
-        status: "pending"
-      }
+    } catch (error) {
+      console.error('Error fetching conversations:', error)
+      setConversations([])
+    } finally {
+      setLoading(false)
     }
-  ]
+  }
 
   // Mock messages for selected conversation
   const messages = [

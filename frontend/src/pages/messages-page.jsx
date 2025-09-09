@@ -301,8 +301,29 @@ export function MessagesPage() {
             </CardHeader>
             
             <CardContent className="p-0">
-              <div className="space-y-1">
-                {conversations.map((conversation) => (
+              {loading ? (
+                <div className="p-4 space-y-4">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="flex items-center space-x-3 animate-pulse">
+                      <div className="w-12 h-12 bg-muted rounded-full" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 bg-muted rounded w-3/4" />
+                        <div className="h-3 bg-muted rounded w-1/2" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : filteredConversations.length === 0 ? (
+                <div className="p-8 text-center">
+                  <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="font-semibold mb-2">No Conversations</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Start a conversation by messaging a creator or client
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {filteredConversations.map((conversation) => (
                   <div
                     key={conversation.id}
                     onClick={() => setSelectedConversation(conversation)}

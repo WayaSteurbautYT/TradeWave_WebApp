@@ -282,6 +282,12 @@ export function Header() {
                         Messages
                       </Link>
                     </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/guilds">
+                        <Shield className="mr-2 h-4 w-4" />
+                        Creator Guilds
+                      </Link>
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => setTheme(theme === "light" ? "dark" : "light")}>
                       <Settings className="mr-2 h-4 w-4" />
                       Toggle Theme

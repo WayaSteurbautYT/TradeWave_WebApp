@@ -39,27 +39,41 @@ import {
   Gavel,
   Shield,
   Moon,
-  Sun
+  Sun,
+  Radio,
+  Scale,
+  Download,
+  Volume2,
+  VolumeX
 } from "lucide-react"
 import { useTheme } from "@/components/theme-provider"
 import { useAuth } from "@/contexts/AuthContext"
+import { soundFX } from "@/lib/soundEffects"
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
+  const [soundEnabled, setSoundEnabled] = useState(() => soundFX.isEnabled())
   const { theme, setTheme } = useTheme()
   const { user, logout, isAuthenticated, loginWithGoogle, loginAs, getCreditsRemaining } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
 
+  const handleToggleSound = () => {
+    const next = soundFX.toggle()
+    setSoundEnabled(next)
+    if (next) soundFX.playCoin()
+  }
+
   const navigation = [
     { name: "Gaming", href: "/gaming", icon: Gamepad2 },
     { name: "Tutorials", href: "/tutorials", icon: Play },
-    { name: "Design", href: "/design", icon: Palette },
-    { name: "Community", href: "/community", icon: Users },
+    { name: "YouTube Hub", href: "/youtube", icon: Youtube },
+    { name: "Live", href: "/streaming", icon: Radio, isLive: true },
     { name: "Marketplace", href: "/marketplace", icon: ShoppingBag },
     { name: "Bidding", href: "/bidding", icon: Gavel },
-    { name: "Hire", href: "/hire", icon: Briefcase }
+    { name: "Hire", href: "/hire", icon: Briefcase },
+    { name: "Apps", href: "/apps", icon: Download }
   ]
 
   const handleSearch = (e: React.FormEvent) => {
@@ -105,8 +119,14 @@ export function Header() {
                       : "text-foreground/70 hover:text-foreground hover:bg-muted"
                   )}
                 >
-                  <Icon className="h-4 w-4" />
+                  <Icon className={cn("h-4 w-4", item.isLive && "text-red-500 animate-pulse")} />
                   <span>{item.name}</span>
+                  {item.isLive && (
+                    <span className="relative flex h-2 w-2 ml-0.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                    </span>
+                  )}
                 </Link>
               )
             })}
@@ -159,6 +179,21 @@ export function Header() {
                 </Button>
               </Link>
 
+              {/* Sound FX Toggle */}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0"
+                onClick={handleToggleSound}
+                title={soundEnabled ? "Mute Sound Effects" : "Enable Sound Effects"}
+              >
+                {soundEnabled ? (
+                  <Volume2 className="h-4 w-4 text-emerald-500" />
+                ) : (
+                  <VolumeX className="h-4 w-4 text-muted-foreground" />
+                )}
+              </Button>
+
               {/* Theme Toggle */}
               <Button
                 variant="ghost"
@@ -207,7 +242,15 @@ export function Header() {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => navigate("/profile")}>
                     <User className="mr-2 h-4 w-4" />
-                    <span>Profile & Portfolio</span>
+                    <span>Profile &amp; Portfolio</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate("/youtube")}>
+                    <Youtube className="mr-2 h-4 w-4 text-red-500" />
+                    <span>YouTube &amp; Social Channels</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate("/apps")}>
+                    <Download className="mr-2 h-4 w-4 text-primary" />
+                    <span>Desktop &amp; Mobile Apps</span>
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate("/dashboard")}>
                     <BarChart3 className="mr-2 h-4 w-4" />
@@ -219,7 +262,7 @@ export function Header() {
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate("/tokens")}>
                     <Coins className="mr-2 h-4 w-4" />
-                    <span>Token Management</span>
+                    <span>Token Economy &amp; Faucet</span>
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate("/guilds")}>
                     <Shield className="mr-2 h-4 w-4" />
@@ -227,7 +270,7 @@ export function Header() {
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate("/achievements")}>
                     <Award className="mr-2 h-4 w-4" />
-                    <span>Achievements & Skills</span>
+                    <span>Achievements &amp; Skills</span>
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate("/analytics")}>
                     <TrendingUp className="mr-2 h-4 w-4" />
@@ -236,6 +279,14 @@ export function Header() {
                   <DropdownMenuItem onClick={() => navigate("/messages")}>
                     <MessageSquare className="mr-2 h-4 w-4" />
                     <span>Messages</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate("/streaming")}>
+                    <Radio className="mr-2 h-4 w-4 text-red-500" />
+                    <span>Live Studio &amp; API</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate("/rules")}>
+                    <Scale className="mr-2 h-4 w-4 text-emerald-500" />
+                    <span>Platform Rules &amp; Escrow</span>
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate("/settings")}>
                     <Settings className="mr-2 h-4 w-4" />
@@ -313,6 +364,18 @@ export function Header() {
             })}
           </div>
           <div className="pt-2 border-t grid grid-cols-2 gap-2 text-sm">
+            <Link to="/youtube" onClick={() => setIsMenuOpen(false)} className="flex items-center space-x-2 p-2 rounded-lg hover:bg-muted">
+              <Youtube className="h-4 w-4 text-red-500" />
+              <span>YouTube Hub</span>
+            </Link>
+            <Link to="/apps" onClick={() => setIsMenuOpen(false)} className="flex items-center space-x-2 p-2 rounded-lg hover:bg-muted">
+              <Download className="h-4 w-4 text-primary" />
+              <span>Install App</span>
+            </Link>
+            <Link to="/streaming" onClick={() => setIsMenuOpen(false)} className="flex items-center space-x-2 p-2 rounded-lg hover:bg-muted">
+              <Radio className="h-4 w-4 text-red-500 animate-pulse" />
+              <span>Live Studio</span>
+            </Link>
             <Link to="/ai-studio" onClick={() => setIsMenuOpen(false)} className="flex items-center space-x-2 p-2 rounded-lg hover:bg-muted">
               <Zap className="h-4 w-4 text-yellow-500" />
               <span>AI Studio</span>
@@ -328,6 +391,10 @@ export function Header() {
             <Link to="/upload" onClick={() => setIsMenuOpen(false)} className="flex items-center space-x-2 p-2 rounded-lg hover:bg-muted">
               <Upload className="h-4 w-4 text-purple-500" />
               <span>Upload</span>
+            </Link>
+            <Link to="/rules" onClick={() => setIsMenuOpen(false)} className="flex items-center space-x-2 p-2 rounded-lg hover:bg-muted">
+              <Scale className="h-4 w-4 text-indigo-500" />
+              <span>Rules</span>
             </Link>
           </div>
         </div>

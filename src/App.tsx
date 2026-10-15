@@ -31,6 +31,9 @@ import { SearchPage } from "@/pages/search-page"
 import { ServicesPage } from "@/pages/services-page"
 import { CoursesPage } from "@/pages/courses-page"
 import { StreamingPage } from "@/pages/streaming-page"
+import { RulesPage } from "@/pages/rules-page"
+import { YouTubePage } from "@/pages/youtube-page"
+import { AppsPage } from "@/pages/apps-page"
 
 export function App() {
   return (
@@ -66,6 +69,9 @@ export function App() {
                   <Route path="/services" element={<ServicesPage />} />
                   <Route path="/courses" element={<CoursesPage />} />
                   <Route path="/streaming" element={<StreamingPage />} />
+                  <Route path="/rules" element={<RulesPage />} />
+                  <Route path="/youtube" element={<YouTubePage />} />
+                  <Route path="/apps" element={<AppsPage />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               </main>

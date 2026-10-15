@@ -282,3 +282,30 @@ export interface Conversation {
   last_message_at: string
   unread_count: number
 }
+
+export interface SuperChatTip {
+  id: string
+  user_id: string
+  user_name: string
+  amount: number
+  message: string
+  timestamp: string
+}
+
+export interface LiveStreamSession {
+  id: string
+  title: string
+  description: string
+  category: string
+  creator_id: string
+  creator_name: string
+  creator_avatar?: string
+  is_live: boolean
+  viewers: number
+  started_at: string
+  stream_key: string
+  rtmp_url: string
+  webrtc_url: string
+  tips: SuperChatTip[]
+}
+

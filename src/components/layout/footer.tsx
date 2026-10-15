@@ -31,25 +31,30 @@ export function Footer() {
   const footerLinks = {
     platform: [
       { name: "Marketplace", href: "/marketplace" },
+      { name: "Live Streaming & API", href: "/streaming" },
+      { name: "YouTube Channel Hub", href: "/youtube" },
+      { name: "Desktop & Mobile Apps", href: "/apps" },
       { name: "Hire Creators", href: "/hire" },
       { name: "Smart Bidding", href: "/bidding" },
       { name: "Gaming Hub", href: "/gaming" },
       { name: "Tutorials", href: "/tutorials" },
-      { name: "Design Showcase", href: "/design" },
       { name: "AI Studio", href: "/ai-studio" },
     ],
     creators: [
+      { name: "Free Community Tier", href: "/tokens" },
       { name: "Creator Guilds", href: "/guilds" },
       { name: "Upload Content", href: "/upload" },
-      { name: "Token Economy", href: "/tokens" },
+      { name: "Token Economy & Faucet", href: "/tokens" },
       { name: "Skill Tree & XP", href: "/achievements" },
       { name: "Creator Dashboard", href: "/dashboard" },
+      { name: "Platform Rules & Escrow", href: "/rules" },
     ],
     community: [
       { name: "Community Feed", href: "/community" },
       { name: "Orders & Milestones", href: "/orders" },
       { name: "Platform Analytics", href: "/analytics" },
       { name: "Subscriptions", href: "/subscription" },
+      { name: "Terms & Guidelines", href: "/rules" },
     ],
   }
 

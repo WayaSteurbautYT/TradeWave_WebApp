@@ -1,6 +1,11 @@
 import { useState } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { useTokens } from "@/contexts/TokenContext"
+import { TokenPackage } from "@/types"
+import { TokenPurchaseModal } from "@/components/tokens/TokenPurchaseModal"
+import { StripeConfigModal } from "@/components/tokens/StripeConfigModal"
+import { AssetSecurityModal } from "@/components/security/AssetSecurityModal"
+import { GoalTracker } from "@/components/gamification/GoalTracker"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -17,7 +22,12 @@ import {
   CreditCard,
   History,
   CheckCircle2,
-  Lock
+  Lock,
+  Gift,
+  ShieldCheck,
+  Sliders,
+  Zap,
+  HelpCircle
 } from "lucide-react"
 
 export function TokensPage() {
@@ -28,6 +38,15 @@ export function TokensPage() {
   const [withdrawMethod, setWithdrawMethod] = useState("stripe")
   const [withdrawEmail, setWithdrawEmail] = useState(user?.email || "")
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false)
+  const [selectedPackage, setSelectedPackage] = useState<TokenPackage | null>(null)
+  const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false)
+  const [isStripeModalOpen, setIsStripeModalOpen] = useState(false)
+  const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false)
+
+  const handleOpenPurchase = (pkg: TokenPackage) => {
+    setSelectedPackage(pkg)
+    setIsPurchaseModalOpen(true)
+  }
 
   const handleWithdrawSubmit = async () => {
     if (!withdrawEmail || withdrawCredits < 100) {
@@ -50,22 +69,48 @@ export function TokensPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <div className="flex items-center space-x-2 mb-2">
-            <div className="p-2 bg-gradient-gaming rounded-xl text-white">
-              <Coins className="h-5 w-5" />
+          <div className="flex items-center space-x-2.5 mb-2">
+            <div className="p-2.5 bg-gradient-gaming rounded-xl text-white shadow-lg shadow-primary/20">
+              <Coins className="h-6 w-6" />
             </div>
-            <h1 className="text-2xl md:text-4xl font-extrabold tracking-tight">
-              Token Economy &amp; Credits
-            </h1>
+            <div>
+              <h1 className="text-2xl md:text-4xl font-extrabold tracking-tight">
+                Token Economy &amp; Microtransactions
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Manage your Waya tokens, claim free daily faucet credits, configure Stripe microtransactions &amp; run security scans.
+              </p>
+            </div>
           </div>
-          <p className="text-sm text-muted-foreground">
-            Manage your WayaCreate tokens. 10 credits = $1.00 USD. Earn credits from gig sales, buy packages, or withdraw to your bank.
-          </p>
         </div>
 
-        <div className="flex items-center space-x-2">
-          <Button onClick={() => setIsWithdrawModalOpen(true)} variant="outline" className="border-border">
-            <ArrowUpRight className="mr-1.5 h-4 w-4 text-emerald-500" />
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            onClick={() => setIsSecurityModalOpen(true)}
+            variant="outline"
+            size="sm"
+            className="text-xs border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10"
+          >
+            <ShieldCheck className="mr-1.5 h-3.5 w-3.5" />
+            Security &amp; Fraud Scan
+          </Button>
+
+          <Button
+            onClick={() => setIsStripeModalOpen(true)}
+            variant="outline"
+            size="sm"
+            className="text-xs border-purple-500/30 text-purple-600 hover:bg-purple-500/10"
+          >
+            <Sliders className="mr-1.5 h-3.5 w-3.5" />
+            Stripe &amp; Micro-tips Setup
+          </Button>
+
+          <Button
+            onClick={() => setIsWithdrawModalOpen(true)}
+            size="sm"
+            className="text-xs bg-primary text-primary-foreground font-bold"
+          >
+            <ArrowUpRight className="mr-1.5 h-3.5 w-3.5 text-white" />
             Withdraw Credits
           </Button>
         </div>
@@ -119,61 +164,100 @@ export function TokensPage() {
         </Card>
       </div>
 
+      {/* Gamified Goal Tracker & Free Faucet Component */}
+      <GoalTracker />
+
       {/* Purchase Token Packages */}
       <div className="space-y-4">
-        <div>
-          <h2 className="text-xl font-bold">Purchase Token Packages</h2>
-          <p className="text-xs text-muted-foreground">Instant credit top-up with bonus tokens on higher tiers.</p>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+          <div>
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <Coins className="h-5 w-5 text-primary" />
+              Token &amp; Community Packages
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              Includes a 100% Free Forever Community Tier, plus instant credit bundles for active studio creators.
+            </p>
+          </div>
+
+          <div className="text-xs text-muted-foreground">
+            Exchange Rate: <strong className="text-foreground">10 Credits = $1.00 USD</strong>
+          </div>
         </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {packages.map((pkg) => (
-            <Card key={pkg.id} className={`gaming-card border-border bg-card flex flex-col justify-between relative ${pkg.popular ? "border-primary/50 shadow-md ring-1 ring-primary/20" : ""}`}>
-              {pkg.popular && (
-                <div className="absolute -top-2.5 right-4">
-                  <Badge className="bg-primary text-primary-foreground text-[10px] font-bold">
-                    MOST POPULAR
-                  </Badge>
-                </div>
-              )}
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base font-bold">{pkg.name}</CardTitle>
-                <div className="text-2xl font-black text-foreground mt-1">
-                  ${pkg.price_usd}
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="p-3 bg-primary/10 rounded-xl text-center">
-                  <span className="text-xl font-black text-primary">{pkg.credits}</span>
-                  <span className="text-xs text-muted-foreground ml-1">Credits</span>
-                  {pkg.bonus_credits > 0 && (
-                    <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
-                      + {pkg.bonus_credits} Free Bonus!
+        <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          {packages.map((pkg) => {
+            const isFree = pkg.price_usd === 0
+            return (
+              <Card
+                key={pkg.id}
+                className={`gaming-card border-border bg-card flex flex-col justify-between relative ${
+                  isFree 
+                    ? "border-emerald-500/50 bg-emerald-500/5 shadow-md ring-1 ring-emerald-500/20" 
+                    : pkg.popular 
+                    ? "border-primary/50 shadow-md ring-1 ring-primary/20" 
+                    : ""
+                }`}
+              >
+                {isFree ? (
+                  <div className="absolute -top-2.5 right-4">
+                    <Badge className="bg-emerald-600 text-white text-[10px] font-extrabold gap-1">
+                      <Gift className="h-3 w-3" />
+                      FREE FOREVER
+                    </Badge>
+                  </div>
+                ) : pkg.popular ? (
+                  <div className="absolute -top-2.5 right-4">
+                    <Badge className="bg-primary text-primary-foreground text-[10px] font-bold">
+                      MOST POPULAR
+                    </Badge>
+                  </div>
+                ) : null}
+
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm sm:text-base font-bold line-clamp-1">{pkg.name}</CardTitle>
+                  <div className="text-2xl font-black text-foreground mt-1">
+                    {isFree ? "$0.00" : `$${pkg.price_usd}`}
+                  </div>
+                </CardHeader>
+
+                <CardContent className="space-y-3">
+                  <div className={`p-3 rounded-xl text-center ${isFree ? "bg-emerald-500/10 text-emerald-600" : "bg-primary/10 text-primary"}`}>
+                    <span className="text-xl font-black">{pkg.credits}</span>
+                    <span className="text-xs text-muted-foreground ml-1">Credits</span>
+                    {pkg.bonus_credits > 0 && (
+                      <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                        + {pkg.bonus_credits} Free Bonus!
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5 text-xs text-muted-foreground">
+                    <div className="flex items-center space-x-1.5">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                      <span>{isFree ? "Free daily token faucet" : "Instant wallet delivery"}</span>
                     </div>
-                  )}
-                </div>
-
-                <div className="space-y-1.5 text-xs text-muted-foreground">
-                  <div className="flex items-center space-x-1.5">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                    <span>Instant wallet delivery</span>
+                    <div className="flex items-center space-x-1.5">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                      <span>{isFree ? "Watch live streams & chat" : "Never expires"}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center space-x-1.5">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                    <span>Never expires</span>
-                  </div>
-                </div>
 
-                <Button
-                  onClick={() => purchaseTokens(pkg.id)}
-                  disabled={loading}
-                  className="w-full bg-primary text-primary-foreground font-semibold text-xs mt-2"
-                >
-                  Buy with Card / Stripe
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
+                  <Button
+                    onClick={() => handleOpenPurchase(pkg)}
+                    disabled={loading}
+                    className={`w-full font-semibold text-xs mt-2 ${
+                      isFree 
+                        ? "bg-emerald-600 hover:bg-emerald-700 text-white" 
+                        : "bg-primary text-primary-foreground"
+                    }`}
+                  >
+                    {isFree ? "Claim Free Explorer" : "Buy with Card / Stripe"}
+                  </Button>
+                </CardContent>
+              </Card>
+            )
+          })}
         </div>
       </div>
 
@@ -200,37 +284,32 @@ export function TokensPage() {
                       ? "bg-emerald-500/10 text-emerald-500" 
                       : tx.transaction_type === "withdrawal"
                       ? "bg-blue-500/10 text-blue-500"
-                      : tx.transaction_type === "purchase"
-                      ? "bg-primary/10 text-primary"
                       : "bg-purple-500/10 text-purple-500"
                   }`}>
                     {tx.transaction_type === "earning" ? (
-                      <ArrowDownLeft className="h-4 w-4" />
+                      <TrendingUp className="h-4 w-4" />
                     ) : tx.transaction_type === "withdrawal" ? (
                       <ArrowUpRight className="h-4 w-4" />
                     ) : (
-                      <Coins className="h-4 w-4" />
+                      <CreditCard className="h-4 w-4" />
                     )}
                   </div>
                   <div>
-                    <div className="font-semibold text-foreground text-sm">{tx.description}</div>
-                    <div className="text-muted-foreground text-[11px] mt-0.5">
-                      {new Date(tx.created_at).toLocaleDateString()} • Status: {tx.status}
-                    </div>
+                    <div className="font-semibold text-foreground">{tx.description}</div>
+                    <div className="text-[11px] text-muted-foreground">{new Date(tx.created_at).toLocaleDateString()}</div>
                   </div>
                 </div>
 
                 <div className="text-right">
-                  <div className={`font-black text-sm ${
+                  <div className={`font-mono font-bold text-sm ${
                     tx.transaction_type === "earning" || tx.transaction_type === "purchase"
                       ? "text-emerald-600 dark:text-emerald-400"
                       : "text-foreground"
                   }`}>
-                    {tx.transaction_type === "spending" || tx.transaction_type === "withdrawal" ? "-" : "+"}
-                    {tx.amount} credits
+                    {tx.transaction_type === "withdrawal" ? "-" : "+"}{tx.amount} cr
                   </div>
                   {tx.usd_amount && (
-                    <div className="text-[11px] text-muted-foreground font-medium">
+                    <div className="text-[11px] text-muted-foreground font-mono">
                       ${tx.usd_amount.toFixed(2)} USD
                     </div>
                   )}
@@ -241,67 +320,74 @@ export function TokensPage() {
         </Card>
       </div>
 
-      {/* Withdrawal Dialog */}
+      {/* Modals */}
+      <TokenPurchaseModal
+        open={isPurchaseModalOpen}
+        onOpenChange={setIsPurchaseModalOpen}
+        pkg={selectedPackage}
+      />
+
+      <StripeConfigModal
+        open={isStripeModalOpen}
+        onOpenChange={setIsStripeModalOpen}
+      />
+
+      <AssetSecurityModal
+        open={isSecurityModalOpen}
+        onOpenChange={setIsSecurityModalOpen}
+      />
+
+      {/* Withdrawal Modal */}
       <Dialog open={isWithdrawModalOpen} onOpenChange={setIsWithdrawModalOpen}>
         <DialogHeader>
-          <DialogTitle>Withdraw Credits to USD</DialogTitle>
-          <DialogDescription>
-            Conversion rate: 10 Credits = $1.00 USD. Processed via Stripe Direct Payouts.
+          <DialogTitle>Withdraw Creator Earnings</DialogTitle>
+          <DialogDescription className="text-xs">
+            Transfer token credits directly to your Stripe Connect bank account or PayPal (10 cr = $1.00 USD).
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 my-4">
-          <div className="p-3 bg-muted/40 rounded-xl space-y-1 text-xs">
+        <div className="space-y-4 my-2 text-xs">
+          <div className="p-3 bg-muted/40 rounded-xl space-y-1">
             <div className="flex justify-between">
-              <span>Your Balance:</span>
-              <span className="font-bold">{getTokenBalance()} credits</span>
+              <span>Current Available Balance:</span>
+              <strong className="text-primary font-bold">{getTokenBalance()} Credits</strong>
             </div>
-            <div className="flex justify-between font-bold text-foreground">
-              <span>Estimated Payout:</span>
-              <span className="text-emerald-600">${(withdrawCredits * 0.1).toFixed(2)} USD</span>
+            <div className="flex justify-between text-muted-foreground">
+              <span>Withdrawal Value:</span>
+              <span>${(withdrawCredits * 0.1).toFixed(2)} USD</span>
             </div>
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-semibold">Credits to Withdraw (Min 100):</label>
+            <label className="font-semibold">Credits to Withdraw (min 100):</label>
             <Input
               type="number"
               min={100}
               max={getTokenBalance()}
               value={withdrawCredits}
-              onChange={(e) => setWithdrawCredits(Number(e.target.value))}
+              onChange={(e) => setWithdrawCredits(parseInt(e.target.value) || 0)}
+              className="text-xs"
             />
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-semibold">Payout Method:</label>
-            <select
-              value={withdrawMethod}
-              onChange={(e) => setWithdrawMethod(e.target.value)}
-              className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-            >
-              <option value="stripe">Stripe Connect (Bank Transfer)</option>
-              <option value="paypal">PayPal</option>
-            </select>
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs font-semibold">Payout Account / Email:</label>
+            <label className="font-semibold">Payout Account Email (Stripe / Bank):</label>
             <Input
               type="email"
               value={withdrawEmail}
               onChange={(e) => setWithdrawEmail(e.target.value)}
-              placeholder="payout@example.com"
+              placeholder="creator@studio.com"
+              className="text-xs"
             />
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="gap-2 sm:gap-0 pt-2">
           <Button variant="outline" size="sm" onClick={() => setIsWithdrawModalOpen(false)}>
             Cancel
           </Button>
-          <Button size="sm" onClick={handleWithdrawSubmit} className="bg-primary text-primary-foreground font-semibold">
-            Confirm ${(withdrawCredits * 0.1).toFixed(2)} USD Withdrawal
+          <Button size="sm" onClick={handleWithdrawSubmit} className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold">
+            Confirm Withdrawal
           </Button>
         </DialogFooter>
       </Dialog>

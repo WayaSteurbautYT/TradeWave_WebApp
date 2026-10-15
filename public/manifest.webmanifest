@@ -1,0 +1,72 @@
+{
+  "name": "WayaCreate - Creator Platform & Marketplace",
+  "short_name": "WayaCreate",
+  "description": "Comprehensive creator platform and marketplace for gaming, tutorials, design, freelance services, smart bidding, creator guilds, AI Studio, and token economy by Waya Steurbaut.",
+  "start_url": "/",
+  "id": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#090d16",
+  "theme_color": "#10b981",
+  "categories": ["games", "productivity", "multimedia", "education"],
+  "icons": [
+    {
+      "src": "/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Marketplace",
+      "short_name": "Market",
+      "description": "Browse 3D game assets and tutorial packages",
+      "url": "/marketplace",
+      "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "Live Streaming",
+      "short_name": "Live",
+      "description": "Watch creator live streams or start your broadcast",
+      "url": "/streaming",
+      "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "YouTube Hub",
+      "short_name": "YouTube",
+      "description": "Sync YouTube channel videos and social channels",
+      "url": "/youtube",
+      "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "Daily Goals & Tokens",
+      "short_name": "Tokens",
+      "description": "Claim daily free faucet tokens and complete quests",
+      "url": "/tokens",
+      "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=1280&h=720&auto=format&fit=crop&q=80",
+      "sizes": "1280x720",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "WayaCreate Desktop Studio"
+    },
+    {
+      "src": "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=720&h=1280&auto=format&fit=crop&q=80",
+      "sizes": "720x1280",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "WayaCreate Mobile Experience"
+    }
+  ]
+}

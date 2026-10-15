@@ -10,7 +10,9 @@ import {
   Achievement, 
   SkillNode, 
   Conversation, 
-  ChatMessage 
+  ChatMessage,
+  LiveStreamSession,
+  SuperChatTip
 } from '../types'
 
 const STORAGE_KEYS = {
@@ -527,6 +529,7 @@ const initialGuilds: Guild[] = [
 
 // Token Packages
 export const tokenPackages: TokenPackage[] = [
+  { id: 'pkg_free', name: 'Free Community Explorer', credits: 50, bonus_credits: 0, price_usd: 0 },
   { id: 'pkg_starter', name: 'Starter Spark', credits: 250, bonus_credits: 0, price_usd: 9.99 },
   { id: 'pkg_creator', name: 'Creator Bundle', credits: 750, bonus_credits: 100, price_usd: 24.99, popular: true },
   { id: 'pkg_pro', name: 'Studio Pro', credits: 2000, bonus_credits: 400, price_usd: 59.99 },
@@ -1039,9 +1042,513 @@ When exporting to the WayaCreate marketplace:
 - **Core Hook**: Fast-paced, high visual fidelity with modular design.
 - **Audience**: Game developers, indie studios, 3D artists looking for drop-in ready assets.
 - **Estimated Production Time**: 3-5 days.
-- **Recommended Marketplace Price**: 350-550 Credits.
-- **Key Deliverables**: 3D files (FBX/Blend), PBR 4K textures, Unity/Unreal test scenes, and 20-min YouTube walkthrough video.`,
+- **Recommended Marketplace Price**: 350-550 Credits.`,
       }
     }
+  },
+
+  // Live Streaming & Own Streaming API
+  getLiveStream(): LiveStreamSession {
+    const defaultStream: LiveStreamSession = {
+      id: 'stream_waya_live',
+      title: 'Live Workshop: Building Sci-Fi Game Props & Retopology in Blender',
+      description: 'Live interactive 3D modeling session with Waya Steurbaut. Asking community questions and testing shaders in Unreal Engine 5.',
+      category: 'Gaming & 3D Modeling',
+      creator_id: 'usr_waya_001',
+      creator_name: 'Waya Steurbaut',
+      creator_avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+      is_live: true,
+      viewers: 1420,
+      started_at: new Date(Date.now() - 45 * 60000).toISOString(),
+      stream_key: 'live_waya_sk_94827103847291',
+      rtmp_url: 'rtmp://live.wayacreate.com/live',
+      webrtc_url: 'wss://webrtc.wayacreate.com/stream/usr_waya_001',
+      tips: [
+        { id: 'tip_1', user_id: 'usr_sarah_002', user_name: 'Sarah Chen', amount: 100, message: 'Super excited for the trim sheet section! Keep it up Waya!', timestamp: '12:05' },
+        { id: 'tip_2', user_id: 'usr_client_001', user_name: 'Apex Studios', amount: 250, message: 'Loving the clean topology walkthrough!', timestamp: '12:12' }
+      ]
+    }
+    return getFromStorage<LiveStreamSession>('wayacreate_livestream', defaultStream)
+  },
+
+  sendSuperChatTip(amount: number, message: string): boolean {
+    const user = this.getUser()
+    if (user.token_balance < amount) return false
+
+    this.deductCredits(amount, `Super Chat tip on Live Stream: "${message}"`)
+    const stream = this.getLiveStream()
+    const newTip: SuperChatTip = {
+      id: `tip_${Date.now()}`,
+      user_id: user.id,
+      user_name: user.display_name,
+      amount,
+      message,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    }
+    stream.tips.unshift(newTip)
+    saveToStorage('wayacreate_livestream', stream)
+    return true
+  },
+
+  toggleGoLive(title: string, category: string): LiveStreamSession {
+    const stream = this.getLiveStream()
+    const user = this.getUser()
+    stream.is_live = !stream.is_live
+    stream.title = title || stream.title
+    stream.category = category || stream.category
+    stream.creator_name = user.display_name
+    stream.started_at = new Date().toISOString()
+    stream.viewers = stream.is_live ? Math.floor(Math.random() * 50) + 12 : 0
+    saveToStorage('wayacreate_livestream', stream)
+    return stream
+  },
+
+  generateNewStreamKey(): string {
+    const stream = this.getLiveStream()
+    const newKey = `live_${Math.random().toString(36).substring(2, 9)}_${Date.now().toString().slice(-6)}`
+    stream.stream_key = newKey
+    saveToStorage('wayacreate_livestream', stream)
+    return newKey
+  },
+
+  // AI Content Assistant
+  generateContentMetadata(input: string) {
+    const cleaned = input.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ")
+    return {
+      title: `Stylized ${cleaned.charAt(0).toUpperCase() + cleaned.slice(1)} Game Asset Pack`,
+      description: `Production-ready game asset optimized for Unreal Engine 5, Unity, and Blender. Features clean quad-dominant topology, 4K PBR texture maps (Albedo, Normal, Roughness, Metallic, Ambient Occlusion), and full collision hulls. Includes complete 25-minute breakdown companion tutorial!`,
+      tags: ["Blender", "GameReady", "PBR Textures", "Modular", "Unreal Engine 5", "Indie Dev"],
+      price: 180,
+      tutorialOutline: `1. Asset Blueprint & Poly Budget Overview\n2. Efficient UV Unwrapping without Stretching\n3. Baking Normal & Curvature Maps\n4. Material Setup in Engine & Collision Tests`
+    }
+  },
+
+  // YouTube Content Importer
+  importFromYouTube(url: string) {
+    let videoId = "demo"
+    if (url.includes("v=")) {
+      videoId = url.split("v=")[1].split("&")[0]
+    } else if (url.includes("youtu.be/")) {
+      videoId = url.split("youtu.be/")[1].split("?")[0]
+    }
+    return {
+      title: "Mastering Procedural Shaders & Trim Sheets in Blender",
+      description: `Imported from YouTube channel WayaCreate: High quality visual guide breaking down procedural texturing and trim sheet optimization for indie game environments.`,
+      tags: ["YouTube Import", "Blender", "Tutorial", "Shaders", "Game Art"],
+      thumbnailUrl: `https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80`,
+      duration: 1850,
+      videoId
+    }
+  },
+
+  // YouTube Channel Data & Video Feed
+  getYouTubeChannel() {
+    const defaultData = {
+      handle: "@WayaSteurbaut",
+      title: "Waya Steurbaut - Game Art & 3D Tech",
+      description: "Official channel for game environment art, Unreal Engine 5 nanite workflows, Blender procedural shaders, and indie game dev tutorials.",
+      avatarUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
+      bannerUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&auto=format&fit=crop&q=80",
+      subscriberCount: 128400,
+      totalViews: 4890200,
+      videoCount: 142,
+      isConnected: true,
+      lastSyncedAt: new Date().toISOString(),
+      videos: [
+        {
+          id: "yt_1",
+          videoId: "dQw4w9WgXcQ",
+          title: "Complete Blender 4 to Unreal Engine 5 Environment Masterclass",
+          description: "Learn how to build photorealistic cyberpunk street scenes with Nanite, Lumen, and modular trim sheets.",
+          views: 342000,
+          duration: "42:15",
+          publishedAt: "2 days ago",
+          thumbnailUrl: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=600&auto=format&fit=crop&q=80",
+          tags: ["Blender", "UE5", "Environment Art", "Nanite"],
+          importedAsTutorial: true
+        },
+        {
+          id: "yt_2",
+          videoId: "bTqVqk7FSmY",
+          title: "Stylized Rain & Wet Surface PBR Shaders in 15 Minutes",
+          description: "Step-by-step shader graph breakdown in Unity & Unreal for realistic ripple and puddle distortions.",
+          views: 189500,
+          duration: "18:40",
+          publishedAt: "1 week ago",
+          thumbnailUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80",
+          tags: ["Shaders", "Unreal Engine", "VFX", "PBR"],
+          importedAsTutorial: true
+        },
+        {
+          id: "yt_3",
+          videoId: "kJQP7kiw5Fk",
+          title: "10 Game Optimization Mistakes Killing Your Frame Rate",
+          description: "Profiling draw calls, texture atlas packing, LOD transitions, and GPU memory budgets.",
+          views: 521000,
+          duration: "28:10",
+          publishedAt: "2 weeks ago",
+          thumbnailUrl: "https://images.unsplash.com/photo-1511512578047-dfb367046420?w=600&auto=format&fit=crop&q=80",
+          tags: ["Optimization", "Gamedev", "Performance", "Profiling"],
+          importedAsTutorial: false
+        },
+        {
+          id: "yt_4",
+          videoId: "3JZ_D3ELwOQ",
+          title: "Building a Modular Sci-Fi Corridor in Blender from Scratch",
+          description: "Hard-surface modeling secrets, bevel modifier tricks, and weighted normals workflow.",
+          views: 245000,
+          duration: "35:50",
+          publishedAt: "3 weeks ago",
+          thumbnailUrl: "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=600&auto=format&fit=crop&q=80",
+          tags: ["Blender", "Hard Surface", "3D Modeling", "Sci-Fi"],
+          importedAsTutorial: false
+        }
+      ]
+    }
+    return getFromStorage('wayacreate_youtube_channel', defaultData)
+  },
+
+  syncYouTubeChannel(handle: string) {
+    const current = this.getYouTubeChannel()
+    const cleanHandle = handle.startsWith("@") ? handle : `@${handle}`
+    current.handle = cleanHandle
+    current.isConnected = true
+    current.lastSyncedAt = new Date().toISOString()
+    saveToStorage('wayacreate_youtube_channel', current)
+    this.trackGoalAction("link_social")
+    return current
+  },
+
+  importYouTubeVideoToCourse(videoId: string) {
+    const channel = this.getYouTubeChannel()
+    const vid = channel.videos.find((v: { id: string; videoId: string }) => v.id === videoId || v.videoId === videoId)
+    if (vid) {
+      vid.importedAsTutorial = true
+      saveToStorage('wayacreate_youtube_channel', channel)
+
+      // Add to courses/tutorials
+      const courses = this.getCourses()
+      const newCourse = {
+        id: `c_yt_${Date.now()}`,
+        title: vid.title,
+        instructor: channel.title.split("-")[0].trim() || "Waya Steurbaut",
+        duration: vid.duration,
+        modules: 1,
+        students: 120,
+        rating: 4.96,
+        price: 0, // Free tutorial from YouTube!
+        description: vid.description,
+        topics: vid.tags,
+        youtube_video_id: vid.videoId,
+        thumbnail_url: vid.thumbnailUrl
+      }
+      courses.unshift(newCourse)
+      saveToStorage('wayacreate_courses', courses)
+      this.trackGoalAction("publish_tutorial")
+      return newCourse
+    }
+    return null
+  },
+
+  // Social Connections (Discord, GitHub, Google, YouTube)
+  getSocialConnections() {
+    const defaults = [
+      {
+        platform: "youtube",
+        name: "YouTube",
+        username: "@WayaSteurbaut",
+        connected: true,
+        stats: "128K subscribers • 142 videos",
+        verified: true
+      },
+      {
+        platform: "discord",
+        name: "Discord",
+        username: "waya_creative#0001",
+        connected: true,
+        stats: "WayaCreate Official Guild (4,520 members)",
+        verified: true
+      },
+      {
+        platform: "github",
+        name: "GitHub",
+        username: "waya-creations",
+        connected: true,
+        stats: "38 Repositories • 1.2K Stars",
+        verified: true
+      },
+      {
+        platform: "google",
+        name: "Google Workspace",
+        username: "steurbautwaya703@gmail.com",
+        connected: true,
+        stats: "Google Cloud & Drive Escrow Storage Linked",
+        verified: true
+      }
+    ]
+    return getFromStorage('wayacreate_social_connections', defaults)
+  },
+
+  toggleSocialConnection(platform: string, newUsername?: string) {
+    const socials = this.getSocialConnections()
+    const target = socials.find((s: { platform: string }) => s.platform === platform)
+    if (target) {
+      target.connected = !target.connected
+      if (newUsername) target.username = newUsername
+      saveToStorage('wayacreate_social_connections', socials)
+      if (target.connected) {
+        this.trackGoalAction("link_social")
+      }
+    }
+    return socials
+  },
+
+  // Daily Free Token Faucet
+  getFaucetStatus() {
+    const saved = getFromStorage<{ lastClaim: string | null; streak: number }>('wayacreate_faucet_state', {
+      lastClaim: null,
+      streak: 1
+    })
+
+    const now = Date.now()
+    let canClaim = true
+    let remainingSeconds = 0
+
+    if (saved.lastClaim) {
+      const last = new Date(saved.lastClaim).getTime()
+      const diffHours = (now - last) / (1000 * 60 * 60)
+      if (diffHours < 24) {
+        canClaim = false
+        remainingSeconds = Math.max(0, Math.floor(24 * 3600 - (now - last) / 1000))
+      } else if (diffHours > 48) {
+        // Streak broken
+        saved.streak = 1
+      }
+    }
+
+    return {
+      canClaim,
+      remainingSeconds,
+      streak: saved.streak,
+      faucetAmount: 10 + (saved.streak > 1 ? Math.min(saved.streak * 2, 20) : 0),
+      lastClaim: saved.lastClaim
+    }
+  },
+
+  claimDailyFaucet(): { success: boolean; creditsAdded: number; streak: number } {
+    const status = this.getFaucetStatus()
+    if (!status.canClaim) {
+      return { success: false, creditsAdded: 0, streak: status.streak }
+    }
+
+    const creditsToAdd = status.faucetAmount
+    const newStreak = status.streak + 1
+
+    saveToStorage('wayacreate_faucet_state', {
+      lastClaim: new Date().toISOString(),
+      streak: newStreak
+    })
+
+    this.addCredits(
+      creditsToAdd,
+      `🎁 Daily Community Faucet (+${creditsToAdd} Free Tokens - Streak Day ${status.streak})`
+    )
+
+    this.trackGoalAction("claim_faucet")
+    return { success: true, creditsAdded: creditsToAdd, streak: newStreak }
+  },
+
+  // Stripe & Microtransactions Configuration
+  getStripeConfig() {
+    const defaultConfig = {
+      isLiveMode: false,
+      publishableKey: "pk_test_51Mz0exampleKEY99WayaCreateAlphaDemo",
+      secretKeyMasked: "sk_test_••••••••••••••••••••••••••••Waya",
+      webhookSecretMasked: "whsec_••••••••••••••••••••••••••••Demo",
+      isConfigured: true,
+      platformFeePercent: 5.0,
+      microTipsEnabled: true,
+      oneClickCheckout: true,
+      webhookLogs: [
+        {
+          id: "evt_101",
+          type: "checkout.session.completed",
+          amount: 24.99,
+          currency: "usd",
+          customer: "steurbautwaya703@gmail.com",
+          status: "processed",
+          time: "10 mins ago"
+        },
+        {
+          id: "evt_102",
+          type: "payment_intent.succeeded",
+          amount: 2.00,
+          currency: "usd",
+          customer: "community_viewer@waya.dev",
+          status: "processed",
+          time: "25 mins ago"
+        }
+      ]
+    }
+    return getFromStorage('wayacreate_stripe_config', defaultConfig)
+  },
+
+  saveStripeConfig(config: Record<string, unknown>) {
+    saveToStorage('wayacreate_stripe_config', config)
+    return config
+  },
+
+  simulateStripeWebhook(type: string, amountUsd: number, description: string) {
+    const config = this.getStripeConfig()
+    const newLog = {
+      id: `evt_${Date.now()}`,
+      type,
+      amount: amountUsd,
+      currency: "usd",
+      customer: "simulated_user@wayacreate.com",
+      status: "processed",
+      time: "Just now"
+    }
+    config.webhookLogs.unshift(newLog)
+    saveToStorage('wayacreate_stripe_config', config)
+
+    // Automatically credit user if it's token purchase or tip
+    const credits = Math.round(amountUsd * 10)
+    this.addCredits(credits, `Stripe Webhook: ${description}`, amountUsd)
+    return newLog
+  },
+
+  // AI Asset Security & Optimizer
+  scanAssetSecurity(assetName: string) {
+    const hash = Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join("")
+    const isModel = assetName.endsWith(".blend") || assetName.endsWith(".fbx") || assetName.endsWith(".obj") || assetName.endsWith(".gltf")
+    
+    return {
+      assetName,
+      hashSha256: hash,
+      score: 96,
+      grade: "A+",
+      checks: [
+        { name: "Executable / Script Malware Audit", passed: true, details: "Zero suspicious shell or macro scripts found in archive." },
+        { name: "3D Mesh Geometry & Topology Check", passed: true, details: "Clean manifold meshes, no flipped normals or non-planar polygons." },
+        { name: "AI Duplicate & Stolen Mesh Detector", passed: true, details: "Original vertex distribution confirmed. 99.4% unique signature." },
+        { name: "Commercial License Verification", passed: true, details: "Royalty-free commercial usage tags embedded into digital package." },
+        { name: "Texture VRAM Budget Optimization", passed: true, details: "Mipmaps present, textures are power-of-two (POT 2048x2048 and 4096x4096)." }
+      ],
+      optimizationsAvailable: [
+        "WebP LOD compression (saves 42% download size without quality loss)",
+        "Automated collision hull generation (Convex Hull)",
+        "Escrow instant buyer protection badge"
+      ],
+      scannedAt: new Date().toISOString()
+    }
+  },
+
+  // Gamified Goals & Creator Quests
+  getGoals() {
+    const defaultGoals = [
+      {
+        id: "goal_faucet",
+        actionKey: "claim_faucet",
+        title: "Claim Daily Community Faucet",
+        description: "Grab your free daily Waya Tokens and build your streak.",
+        category: "daily",
+        progress: 0,
+        target: 1,
+        rewardTokens: 10,
+        rewardXP: 25,
+        claimed: false
+      },
+      {
+        id: "goal_social",
+        actionKey: "link_social",
+        title: "Connect YouTube or Social Account",
+        description: "Sync your YouTube channel, Discord guild, or GitHub profile.",
+        category: "daily",
+        progress: 1,
+        target: 1,
+        rewardTokens: 25,
+        rewardXP: 50,
+        claimed: false
+      },
+      {
+        id: "goal_stream",
+        actionKey: "watch_stream",
+        title: "Watch a Live Stream or Send a Tip",
+        description: "Support live creators in the Live Streaming Studio.",
+        category: "daily",
+        progress: 0,
+        target: 1,
+        rewardTokens: 15,
+        rewardXP: 30,
+        claimed: false
+      },
+      {
+        id: "goal_scan",
+        actionKey: "run_scan",
+        title: "Run AI Security Optimization Scan",
+        description: "Audit an asset or package with our smart security scanner.",
+        category: "weekly",
+        progress: 0,
+        target: 1,
+        rewardTokens: 20,
+        rewardXP: 40,
+        claimed: false
+      },
+      {
+        id: "goal_upload",
+        actionKey: "publish_tutorial",
+        title: "Upload or Import a Free Tutorial",
+        description: "Share 3D tips or import from YouTube to grow the creator library.",
+        category: "weekly",
+        progress: 0,
+        target: 1,
+        rewardTokens: 50,
+        rewardXP: 100,
+        claimed: false
+      }
+    ]
+    return getFromStorage('wayacreate_creator_goals', defaultGoals)
+  },
+
+  trackGoalAction(actionKey: string) {
+    const goals = this.getGoals()
+    let updated = false
+    goals.forEach((g: { actionKey: string; progress: number; target: number }) => {
+      if (g.actionKey === actionKey && g.progress < g.target) {
+        g.progress = Math.min(g.target, g.progress + 1)
+        updated = true
+      }
+    })
+    if (updated) {
+      saveToStorage('wayacreate_creator_goals', goals)
+    }
+  },
+
+  claimGoalReward(goalId: string): { success: boolean; tokens: number; xp: number } {
+    const goals = this.getGoals()
+    const target = goals.find((g: { id: string }) => g.id === goalId)
+    if (target && target.progress >= target.target && !target.claimed) {
+      target.claimed = true
+      saveToStorage('wayacreate_creator_goals', goals)
+
+      // Add tokens
+      this.addCredits(target.rewardTokens, `🏆 Completed Quest: ${target.title}`)
+
+      // Add XP to user
+      const user = this.getUser()
+      user.level.xp += target.rewardXP
+      if (user.level.xp >= user.level.xp_to_next) {
+        user.level.level += 1
+        user.level.xp = user.level.xp - user.level.xp_to_next
+        user.level.xp_to_next = Math.round(user.level.xp_to_next * 1.5)
+      }
+      this.saveUser(user)
+
+      return { success: true, tokens: target.rewardTokens, xp: target.rewardXP }
+    }
+    return { success: false, tokens: 0, xp: 0 }
   }
 }
+
+

@@ -1,0 +1,8 @@
+{
+  "name": "WayaCreate - Creator Platform & Marketplace",
+  "description": "Comprehensive creator platform and marketplace for gaming, tutorials, design, freelance services, smart bidding, creator guilds, AI Studio, and token economy by Waya Steurbaut.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

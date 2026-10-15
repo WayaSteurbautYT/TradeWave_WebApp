@@ -1,42 +1,28 @@
-# TradeWave WebApp
+# WayaCreate - Creator Platform & Marketplace
 
-A beta product platform and marketplace concept for creators, buyers, teams, and collaborators.
+A modern, high-performance creator platform and digital asset marketplace rewritten in React + TypeScript with Vite and Tailwind CSS. Inspired by Waya Steurbaut's YouTube community for game development, 3D design, and coding.
 
-Status: Early beta / MVP in active iteration
+## Core Features Preserved & Rewritten
 
-## Overview
+- **Marketplace & Digital Trading**: Browse and purchase 3D models, shaders, Unity & Unreal Engine templates, audio FX, and video presets. Every asset includes project files and a video breakdown tutorial.
+- **Freelance Services & Gigs**: Hire verified creators across Gaming, Design, Development, and Video Production with multi-tiered packages (Basic, Standard, Premium) and milestone escrow protection.
+- **Smart Bidding & Tenders**: Post client game tenders or place bids with delivery milestones, auto-projections, and AI matching analytics.
+- **Creator Guilds & Syndicates**: Found or join collaborative guilds (e.g., Alpha Creators Guild, Pixel & Shader Syndicate) with shared treasuries, guild levels, and co-working on major projects.
+- **AI Studio**: Powered by Google Gemini 2.0 to generate C# gameplay controllers, HLSL/GLSL shaders, concept prompts, and YouTube tutorial scripts.
+- **Token Economy & Credits**: Manage credit balance, purchase token bundles, and request USD payouts/withdrawals. 10 credits = $1.00 USD.
+- **Gamified Progression & Skill Tree**: Unlock levels from Bronze to Diamond, master skills (3D Sculpting, PBR Shading, Rigging, Netcode), and earn badge rewards.
+- **Order Escrow & Direct Messaging**: Real-time communication between clients and creators with milestone approvals and delivery tracking.
+- **Responsive Dark/Light Theme**: Distinctive gaming aesthetic with emerald and neon accents, smooth animations, and mobile drawer navigation.
 
-TradeWave is a creator-focused marketplace and workflow platform for buying, selling, collaborating, and managing digital work. The app includes concepts for user profiles, listings, bidding, payments, AI-assisted workflows, and multi-user collaboration.
-
-This repository is the working implementation for the TradeWave app and related planning, launch, and operational documents.
-
-## Product goals
-
-- Create a clean beta MVP for marketplace discovery and project workflows
-- Make onboarding and product flows easy to understand for early users
-- Support creator profiles, listings, buying flows, and collaboration
-- Enable future AI-assisted experiences and operational automation
-- Prepare for secure deployment and clean GitHub project management
-
-## Repository structure
-
-- `frontend/` — React app and UI implementation
-- `backend/` — backend services and API logic
-- `docs/` — product, launch, and handoff documentation
-- `showcase/` — demo visuals and beta marketing assets
-- `tests/` — validation and smoke-test coverage
-- `README.md` — this overview
-- `ROADMAP.md` — product direction and milestones
-- `DEPLOYMENT_GUIDE.md` — deployment guidance
-- `FINISH_CHECKLIST.md` — launch checklist
-- `BETA_LAUNCH_READINESS.md` — beta release review recommendations
-- `OWNERSHIP.md` — product ownership and governance
-- `LICENSE` — legal licensing
-- `COMMERCIAL_USE_AGREEMENT.md` — commercial-use terms
-
-## Frontend quick start
+## Development & Build
 
 ```bash
-cd frontend
-npm install
-npm start
+# Run development server on port 3000
+npm run dev
+
+# Type check
+npm run lint
+
+# Production build
+npm run build
+```

@@ -1,0 +1,63 @@
+<svg width="1400" height="900" viewBox="0 0 1400 900" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="TradeWave beta mockup">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#111827"/>
+    </linearGradient>
+    <linearGradient id="cardGlow" x1="0" x2="1">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="20" stdDeviation="18" flood-color="#020617" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <rect width="1400" height="900" fill="url(#bg)"/>
+
+  <rect x="70" y="60" width="1260" height="780" rx="26" fill="#0b1120" stroke="#1e293b" stroke-width="2" filter="url(#softShadow)"/>
+
+  <rect x="90" y="90" width="1220" height="72" rx="18" fill="#111827" stroke="#1f2937"/>
+  <circle cx="130" cy="126" r="10" fill="#f87171"/>
+  <circle cx="160" cy="126" r="10" fill="#fbbf24"/>
+  <circle cx="190" cy="126" r="10" fill="#4ade80"/>
+  <rect x="1010" y="112" width="180" height="28" rx="14" fill="#1d4ed8" opacity="0.9"/>
+  <rect x="1220" y="112" width="60" height="28" rx="14" fill="#334155"/>
+
+  <rect x="120" y="200" width="280" height="560" rx="22" fill="#0f172a" stroke="#1e293b"/>
+  <rect x="150" y="232" width="220" height="16" rx="8" fill="#38bdf8" opacity="0.8"/>
+  <rect x="150" y="270" width="180" height="12" rx="6" fill="#475569"/>
+  <rect x="150" y="300" width="200" height="12" rx="6" fill="#475569"/>
+  <rect x="150" y="350" width="220" height="120" rx="18" fill="#111827" stroke="#1e293b"/>
+  <circle cx="216" cy="394" r="26" fill="url(#cardGlow)"/>
+  <rect x="258" y="374" width="80" height="12" rx="6" fill="#dbeafe"/>
+  <rect x="258" y="398" width="96" height="12" rx="6" fill="#94a3b8"/>
+
+  <rect x="470" y="210" width="780" height="150" rx="26" fill="#111827" stroke="#1e293b"/>
+  <rect x="500" y="240" width="260" height="18" rx="9" fill="#e2e8f0"/>
+  <rect x="500" y="276" width="430" height="14" rx="7" fill="#64748b"/>
+  <rect x="500" y="304" width="260" height="14" rx="7" fill="#64748b"/>
+  <rect x="1080" y="236" width="120" height="58" rx="16" fill="#22c55e" opacity="0.9"/>
+
+  <rect x="470" y="390" width="240" height="250" rx="20" fill="#111827" stroke="#1e293b"/>
+  <rect x="740" y="390" width="240" height="250" rx="20" fill="#111827" stroke="#1e293b"/>
+  <rect x="1010" y="390" width="240" height="250" rx="20" fill="#111827" stroke="#1e293b"/>
+
+  <rect x="500" y="430" width="180" height="120" rx="18" fill="url(#cardGlow)" opacity="0.9"/>
+  <rect x="770" y="430" width="180" height="120" rx="18" fill="#1d4ed8" opacity="0.9"/>
+  <rect x="1040" y="430" width="180" height="120" rx="18" fill="#7c3aed" opacity="0.9"/>
+
+  <rect x="500" y="572" width="120" height="12" rx="6" fill="#e2e8f0"/>
+  <rect x="770" y="572" width="120" height="12" rx="6" fill="#e2e8f0"/>
+  <rect x="1040" y="572" width="120" height="12" rx="6" fill="#e2e8f0"/>
+
+  <g transform="translate(1260 240)">
+    <circle cx="0" cy="0" r="22" fill="#f8fafc"/>
+    <circle cx="0" cy="0" r="9" fill="#0f172a"/>
+    <path d="M0,22 L18,54" stroke="#f8fafc" stroke-width="12" stroke-linecap="round"/>
+    <path d="M18,54 L42,90" stroke="#f8fafc" stroke-width="12" stroke-linecap="round"/>
+  </g>
+
+  <text x="500" y="730" font-family="Arial, sans-serif" font-size="30" font-weight="700" fill="#f8fafc">TradeWave beta</text>
+  <text x="500" y="768" font-family="Arial, sans-serif" font-size="18" fill="#94a3b8">Marketplace • Profiling • Payments • AI-assisted workflows</text>
+</svg>

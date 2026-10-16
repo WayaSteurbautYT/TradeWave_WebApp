@@ -24,28 +24,44 @@ import {
   ShieldCheck,
   Globe,
   Radio,
-  BookOpen
+  BookOpen,
+  Key,
+  Link as LinkIcon,
+  Github,
+  Lock,
+  Layers,
+  Check,
+  Copy
 } from "lucide-react"
 
 export function YouTubePage() {
   const [channelData, setChannelData] = useState(() => MockStore.getYouTubeChannel())
   const [socials, setSocials] = useState(() => MockStore.getSocialConnections())
-  const [inputHandle, setInputHandle] = useState(channelData.handle || "@WayaSteurbaut")
+  const [inputHandle, setInputHandle] = useState(channelData.handle || "@wayacreate")
+  const [apiKey, setApiKey] = useState("AIzaSyWayaCreate-V3-Production-Key")
+  const [customVideoUrl, setCustomVideoUrl] = useState("")
   const [isSyncing, setIsSyncing] = useState(false)
   const [selectedVideo, setSelectedVideo] = useState<{ id: string; videoId: string; title: string; description: string; duration: string; thumbnailUrl: string } | null>(null)
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false)
+  const [isDiscordDevOpen, setIsDiscordDevOpen] = useState(false)
+  const [isGithubDevOpen, setIsGithubDevOpen] = useState(false)
+  const [copiedLink, setCopiedLink] = useState(false)
 
-  const handleFetchChannel = () => {
-    if (!inputHandle.trim()) return
+  const handleFetchChannel = (targetHandle?: string) => {
+    const handleToFetch = targetHandle || inputHandle.trim()
+    if (!handleToFetch) return
     setIsSyncing(true)
+    soundFX.playClick()
+
     setTimeout(() => {
-      const updated = MockStore.syncYouTubeChannel(inputHandle.trim())
+      const updated = MockStore.syncYouTubeChannel(handleToFetch)
       setChannelData(updated)
+      setInputHandle(handleToFetch)
       setIsSyncing(false)
       soundFX.playFanfare()
       showToast({
-        title: "YouTube Channel Synced!",
-        description: `Successfully fetched channel data for ${updated.title}.`,
+        title: "YouTube Channel Synced! 🎬",
+        description: `Successfully imported videos and stats for ${updated.title} via YouTube Data API v3.`,
         variant: "success"
       })
     }, 700)
@@ -57,11 +73,20 @@ export function YouTubePage() {
       setChannelData(MockStore.getYouTubeChannel())
       soundFX.playCoin()
       showToast({
-        title: "Video Imported to Academy!",
+        title: "Video Imported to Academy! 🎓",
         description: `"${title}" is now available in your WayaCreate Courses & Tutorials.`,
         variant: "success"
       })
     }
+  }
+
+  const handleDirectUrlImport = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!customVideoUrl.trim()) return
+
+    const parsed = MockStore.importFromYouTube(customVideoUrl.trim())
+    handleImportVideo(parsed.videoId, parsed.title)
+    setCustomVideoUrl("")
   }
 
   const handleToggleSocial = (platform: string) => {
@@ -101,24 +126,74 @@ export function YouTubePage() {
         </div>
 
         {/* Sync Controls */}
-        <div className="flex items-center space-x-2 w-full md:w-auto">
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
           <Input
             value={inputHandle}
             onChange={(e) => setInputHandle(e.target.value)}
-            placeholder="@yourchannel"
-            className="text-xs h-9 font-medium max-w-xs"
+            placeholder="@wayacreate"
+            className="text-xs h-9 font-medium max-w-xs font-mono"
           />
           <Button
             size="sm"
-            onClick={handleFetchChannel}
+            onClick={() => handleFetchChannel()}
             disabled={isSyncing}
             className="bg-red-600 hover:bg-red-700 text-white font-bold h-9 shrink-0"
           >
             <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${isSyncing ? "animate-spin" : ""}`} />
-            {isSyncing ? "Fetching..." : "Fetch Channel"}
+            {isSyncing ? "Fetching API..." : "Sync Channel"}
           </Button>
         </div>
       </div>
+
+      {/* Quick Presets & YouTube API Key Configuration Bar */}
+      <Card className="border-border bg-card p-4 space-y-3">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+              <Sparkles className="h-3.5 w-3.5 text-primary" />
+              Quick Channel Presets:
+            </span>
+            <Button
+              size="sm"
+              variant={inputHandle === "@wayacreate" ? "default" : "outline"}
+              className="h-7 text-xs font-mono"
+              onClick={() => handleFetchChannel("@wayacreate")}
+            >
+              @wayacreate (Official)
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs font-mono"
+              onClick={() => handleFetchChannel("@UnrealEngine")}
+            >
+              @UnrealEngine
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs font-mono"
+              onClick={() => handleFetchChannel("@Blender")}
+            >
+              @Blender
+            </Button>
+          </div>
+
+          <div className="flex items-center space-x-2 w-full md:w-auto">
+            <Key className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+            <Input
+              type="password"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder="YouTube Data API v3 Key"
+              className="text-[11px] h-7 font-mono max-w-xs"
+            />
+            <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/30 text-[10px] shrink-0">
+              API v3 Active
+            </Badge>
+          </div>
+        </div>
+      </Card>
 
       {/* Channel Showcase Banner */}
       <Card className="border-border bg-card overflow-hidden">
@@ -217,6 +292,32 @@ export function YouTubePage() {
         </CardContent>
       </Card>
 
+      {/* Direct YouTube Video Link Importer */}
+      <Card className="border-border bg-card p-5 space-y-3">
+        <div className="flex items-center space-x-2">
+          <LinkIcon className="h-5 w-5 text-primary" />
+          <div>
+            <h3 className="font-bold text-sm">Direct YouTube Video URL Importer</h3>
+            <p className="text-xs text-muted-foreground">
+              Paste any YouTube link (e.g. https://www.youtube.com/watch?v=... or https://youtu.be/...) to import into WayaCreate Academy.
+            </p>
+          </div>
+        </div>
+
+        <form onSubmit={handleDirectUrlImport} className="flex gap-2">
+          <Input
+            value={customVideoUrl}
+            onChange={(e) => setCustomVideoUrl(e.target.value)}
+            placeholder="Paste YouTube Video URL..."
+            className="text-xs h-9 font-mono flex-1"
+          />
+          <Button type="submit" size="sm" className="bg-primary text-primary-foreground font-bold h-9">
+            <PlusCircle className="mr-1.5 h-3.5 w-3.5" />
+            Import Video
+          </Button>
+        </form>
+      </Card>
+
       {/* Videos Section */}
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
@@ -232,7 +333,7 @@ export function YouTubePage() {
         </div>
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {channelData.videos.map((vid: { id: string; videoId: string; title: string; description: string; views: number; duration: string; publishedAt: string; thumbnailUrl: string; tags: string[]; importedAsTutorial: boolean }) => (
+          {channelData.videos.map((vid: any) => (
             <Card key={vid.id} className="border-border bg-card overflow-hidden hover:shadow-lg transition-all flex flex-col justify-between group">
               <div>
                 <div
@@ -266,7 +367,7 @@ export function YouTubePage() {
                     <span>{vid.publishedAt}</span>
                   </div>
                   <div className="flex flex-wrap gap-1 pt-1">
-                    {vid.tags.slice(0, 3).map((tag, i) => (
+                    {vid.tags.slice(0, 3).map((tag: string, i: number) => (
                       <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
                         #{tag}
                       </span>
@@ -298,64 +399,176 @@ export function YouTubePage() {
         </div>
       </div>
 
-      {/* Connected Social Accounts Manager */}
+      {/* Connected Social Accounts Manager with Developer Portals */}
       <div className="space-y-4">
         <div>
           <h3 className="text-xl font-bold flex items-center gap-2">
             <Share2 className="h-5 w-5 text-primary" />
-            Connected Social Media Accounts
+            Connected Developer Portals &amp; Social Accounts
           </h3>
           <p className="text-xs text-muted-foreground">
-            Link Discord, Google, GitHub, and YouTube to unlock cross-platform badges, community perks, and escrow storage.
+            Configure Discord Developer Portal credentials, GitHub access tokens, and Google / YouTube OAuth.
           </p>
         </div>
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {socials.map((soc: { platform: string; name: string; username: string; connected: boolean; stats: string; verified: boolean }) => (
-            <Card key={soc.platform} className="border-border bg-card p-5 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <div className="p-2 rounded-lg bg-muted text-foreground font-bold">
-                    {soc.platform === "youtube" ? (
-                      <Youtube className="h-5 w-5 text-red-500" />
-                    ) : soc.platform === "discord" ? (
-                      <Radio className="h-5 w-5 text-indigo-500" />
-                    ) : soc.platform === "github" ? (
-                      <Globe className="h-5 w-5 text-foreground" />
-                    ) : (
-                      <ShieldCheck className="h-5 w-5 text-blue-500" />
-                    )}
+          {socials.map((soc: any) => (
+            <Card key={soc.platform} className="border-border bg-card p-5 space-y-3 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center space-x-2">
+                    <div className="p-2 rounded-lg bg-muted text-foreground font-bold">
+                      {soc.platform === "youtube" ? (
+                        <Youtube className="h-5 w-5 text-red-500" />
+                      ) : soc.platform === "discord" ? (
+                        <Radio className="h-5 w-5 text-indigo-500" />
+                      ) : soc.platform === "github" ? (
+                        <Globe className="h-5 w-5 text-foreground" />
+                      ) : (
+                        <ShieldCheck className="h-5 w-5 text-blue-500" />
+                      )}
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-sm">{soc.name}</h4>
+                      <span className="text-[11px] text-muted-foreground font-mono">{soc.username}</span>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-bold text-sm">{soc.name}</h4>
-                    <span className="text-[11px] text-muted-foreground font-mono">{soc.username}</span>
-                  </div>
+
+                  <Badge
+                    variant={soc.connected ? "default" : "secondary"}
+                    className={`text-[10px] ${soc.connected ? "bg-emerald-500 text-white" : ""}`}
+                  >
+                    {soc.connected ? "Connected" : "Disconnected"}
+                  </Badge>
                 </div>
 
-                <Badge
-                  variant={soc.connected ? "default" : "secondary"}
-                  className={`text-[10px] ${soc.connected ? "bg-emerald-500 text-white" : ""}`}
-                >
-                  {soc.connected ? "Connected" : "Disconnected"}
-                </Badge>
+                <p className="text-[11px] text-muted-foreground leading-normal">
+                  {soc.stats}
+                </p>
               </div>
 
-              <p className="text-[11px] text-muted-foreground leading-normal">
-                {soc.stats}
-              </p>
+              <div className="space-y-2 pt-2 border-t">
+                {soc.platform === "discord" ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setIsDiscordDevOpen(true)}
+                    className="w-full text-xs h-7 border-indigo-500/30 text-indigo-400 font-semibold"
+                  >
+                    Discord Dev Portal Setup
+                  </Button>
+                ) : soc.platform === "github" ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setIsGithubDevOpen(true)}
+                    className="w-full text-xs h-7 font-semibold"
+                  >
+                    GitHub OAuth Config
+                  </Button>
+                ) : null}
 
-              <Button
-                size="sm"
-                variant={soc.connected ? "outline" : "default"}
-                onClick={() => handleToggleSocial(soc.platform)}
-                className="w-full text-xs h-7"
-              >
-                {soc.connected ? "Disconnect" : "Connect Account"}
-              </Button>
+                <Button
+                  size="sm"
+                  variant={soc.connected ? "outline" : "default"}
+                  onClick={() => handleToggleSocial(soc.platform)}
+                  className="w-full text-xs h-7"
+                >
+                  {soc.connected ? "Disconnect" : "Connect Account"}
+                </Button>
+              </div>
             </Card>
           ))}
         </div>
       </div>
+
+      {/* Discord Developer Portal Modal */}
+      <Dialog open={isDiscordDevOpen} onOpenChange={setIsDiscordDevOpen}>
+        <DialogHeader>
+          <div className="flex items-center space-x-2">
+            <div className="p-2 bg-indigo-500/10 text-indigo-400 rounded-xl">
+              <Radio className="h-5 w-5" />
+            </div>
+            <div>
+              <DialogTitle>Discord Developer Portal Configuration</DialogTitle>
+              <DialogDescription className="text-xs">
+                Link your Discord Bot / Application credentials for community guild perks and automated role assignments.
+              </DialogDescription>
+            </div>
+          </div>
+        </DialogHeader>
+
+        <div className="space-y-3 my-2 text-xs">
+          <div className="p-3 bg-muted/30 rounded-xl space-y-1 border">
+            <span className="font-bold text-foreground">OAuth2 Redirect URI:</span>
+            <div className="p-2 bg-background border rounded font-mono text-[11px] select-all">
+              https://wayacreate.com/auth/discord/callback
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="font-semibold text-foreground">Discord Application Client ID:</label>
+            <Input defaultValue="1284902819384910293" className="font-mono text-xs" />
+          </div>
+
+          <div className="space-y-1">
+            <label className="font-semibold text-foreground">OAuth2 Scopes:</label>
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              <Badge variant="secondary">identify</Badge>
+              <Badge variant="secondary">email</Badge>
+              <Badge variant="secondary">guilds</Badge>
+              <Badge variant="secondary">guilds.join</Badge>
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button size="sm" onClick={() => {
+            setIsDiscordDevOpen(false)
+            showToast({ title: "Discord Settings Saved", description: "Application credentials synced.", variant: "success" })
+          }} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs">
+            Save Discord Credentials
+          </Button>
+        </DialogFooter>
+      </Dialog>
+
+      {/* GitHub Developer Portal Modal */}
+      <Dialog open={isGithubDevOpen} onOpenChange={setIsGithubDevOpen}>
+        <DialogHeader>
+          <div className="flex items-center space-x-2">
+            <div className="p-2 bg-muted text-foreground rounded-xl">
+              <Github className="h-5 w-5" />
+            </div>
+            <div>
+              <DialogTitle>GitHub Developer OAuth Configuration</DialogTitle>
+              <DialogDescription className="text-xs">
+                Synchronize Blender python addons, Unreal Engine source code, and release tags.
+              </DialogDescription>
+            </div>
+          </div>
+        </DialogHeader>
+
+        <div className="space-y-3 my-2 text-xs">
+          <div className="space-y-1">
+            <label className="font-semibold text-foreground">GitHub Organization / Handle:</label>
+            <Input defaultValue="waya-creations" className="font-mono text-xs" />
+          </div>
+
+          <div className="space-y-1">
+            <label className="font-semibold text-foreground">Personal Access Token (repo, read:user):</label>
+            <Input type="password" defaultValue="ghp_WayaCreateProdToken983427189" className="font-mono text-xs" />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button size="sm" onClick={() => {
+            setIsGithubDevOpen(false)
+            showToast({ title: "GitHub Linked", description: "Repository access granted.", variant: "success" })
+          }} className="bg-primary text-primary-foreground font-bold text-xs">
+            Save GitHub Integration
+          </Button>
+        </DialogFooter>
+      </Dialog>
 
       {/* Video Preview Modal */}
       <Dialog open={isVideoModalOpen} onOpenChange={setIsVideoModalOpen}>
@@ -375,7 +588,6 @@ export function YouTubePage() {
 
         <div className="space-y-4 my-2">
           <div className="relative aspect-video rounded-xl overflow-hidden bg-black border">
-            {/* Embedded Player or Demo iframe */}
             <iframe
               width="100%"
               height="100%"

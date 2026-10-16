@@ -65,11 +65,49 @@ export const defaultUser: UserProfile = {
   languages: ['English', 'Dutch', 'French'],
   location: 'Ghent, Belgium',
   website: 'https://wayacreate.com',
+  youtube_channel_url: 'https://www.youtube.com/@wayacreate',
+  discord_tag: 'waya_creative#0001',
+  github_handle: 'waya-creations',
   rating: 4.96,
   review_count: 248,
   total_earned: 14850,
   total_spent: 3200,
   token_balance: 2080,
+  earned_balance: 14850,
+  can_earn: true,
+  ai_rating: 96,
+  ai_badges: [
+    {
+      id: 'badge_nanite_master',
+      name: 'Nanite Geometry Master',
+      icon: '💎',
+      tier: 'Diamond',
+      category: 'Unreal Engine 5',
+      description: 'Demonstrated exceptional understanding of infinite-poly virtualization and cinematic cluster streaming.',
+      score: 98,
+      unlocked_at: '2025-02-10T12:00:00.000Z'
+    },
+    {
+      id: 'badge_pbr_guru',
+      name: 'PBR Shading Perfectionist',
+      icon: '🎨',
+      tier: 'Platinum',
+      category: 'Material Science',
+      description: 'Flawless roughness packing, micro-surface normal fidelity, and metallic energy conservation.',
+      score: 95,
+      unlocked_at: '2025-02-14T15:30:00.000Z'
+    },
+    {
+      id: 'badge_rights_monetizer',
+      name: 'Verified Commercial Rights Seller',
+      icon: '⚡',
+      tier: 'Diamond',
+      category: 'Economy & Legal',
+      description: 'Successfully drafted verifiable digital IP contracts with tradeable secondary licenses on WayaCreate.',
+      score: 97,
+      unlocked_at: '2025-03-01T10:00:00.000Z'
+    }
+  ],
   created_at: '2024-01-15T00:00:00.000Z',
 }
 
@@ -1144,9 +1182,9 @@ When exporting to the WayaCreate marketplace:
   // YouTube Channel Data & Video Feed
   getYouTubeChannel() {
     const defaultData = {
-      handle: "@WayaSteurbaut",
-      title: "Waya Steurbaut - Game Art & 3D Tech",
-      description: "Official channel for game environment art, Unreal Engine 5 nanite workflows, Blender procedural shaders, and indie game dev tutorials.",
+      handle: "@wayacreate",
+      title: "WayaCreate (@wayacreate) - Official Creator Hub",
+      description: "Official channel for game environment art, Unreal Engine 5 nanite workflows, Blender procedural shaders, and indie game dev tutorials. https://www.youtube.com/@wayacreate",
       avatarUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
       bannerUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&auto=format&fit=crop&q=80",
       subscriberCount: 128400,

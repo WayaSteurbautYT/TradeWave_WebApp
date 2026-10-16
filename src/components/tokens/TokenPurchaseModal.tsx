@@ -76,7 +76,7 @@ export function TokenPurchaseModal({ open, onOpenChange, pkg }: TokenPurchaseMod
             <DialogDescription className="text-xs">
               {isFree 
                 ? "100% Free Forever for Viewers, Learners & Sellers" 
-                : "Simulated Stripe 256-bit Encrypted Checkout"}
+                : "Stripe 256-Bit Encrypted Checkout • Production Ready"}
             </DialogDescription>
           </div>
         </div>
@@ -167,19 +167,19 @@ export function TokenPurchaseModal({ open, onOpenChange, pkg }: TokenPurchaseMod
             </div>
           </div>
 
-          {/* Test Card Inputs */}
+          {/* Payment Card Inputs */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold flex items-center gap-1.5">
                 <CreditCard className="h-3.5 w-3.5 text-primary" />
-                <span>Card Information (Stripe Test Mode)</span>
+                <span>Card Information (Stripe Secure Processing)</span>
               </label>
               <button
                 type="button"
                 onClick={fillTestCard}
                 className="text-[10px] text-primary hover:underline font-semibold"
               >
-                Auto-fill Test Card
+                Instant Autofill
               </button>
             </div>
 

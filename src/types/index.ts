@@ -43,12 +43,44 @@ export interface UserProfile {
   languages: string[]
   location?: string
   website?: string
+  youtube_channel_url?: string
+  discord_tag?: string
+  github_handle?: string
+  stripe_account_id?: string
   rating: number
   review_count: number
   total_earned: number
   total_spent: number
   token_balance: number
+  earned_balance?: number
+  can_earn?: boolean
+  ai_rating?: number
+  ai_badges?: AIBadge[]
+  ai_skill_evaluation?: AISkillEvaluation
   created_at: string
+}
+
+export interface AIBadge {
+  id: string
+  name: string
+  icon: string
+  tier: "Silver" | "Gold" | "Platinum" | "Diamond"
+  category: string
+  description: string
+  score: number
+  unlocked_at: string
+}
+
+export interface AISkillEvaluation {
+  overall_score: number
+  tier: string
+  summary: string
+  target_career: string
+  strengths: string[]
+  recommended_actions: string[]
+  badges_awarded: AIBadge[]
+  skill_ratings: { [skillName: string]: { score: number; grade: string; feedback: string } }
+  evaluated_at: string
 }
 
 export type ContentType = "video" | "short" | "livestream" | "image" | "audio" | "document" | "course" | "3d_model" | "template" | "code"

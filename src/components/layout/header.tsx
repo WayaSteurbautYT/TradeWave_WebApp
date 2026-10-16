@@ -49,9 +49,11 @@ import {
 import { useTheme } from "@/components/theme-provider"
 import { useAuth } from "@/contexts/AuthContext"
 import { soundFX } from "@/lib/soundEffects"
+import { AuthModal } from "@/components/auth/AuthModal"
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [soundEnabled, setSoundEnabled] = useState(() => soundFX.isEnabled())
   const { theme, setTheme } = useTheme()
@@ -294,14 +296,17 @@ export function Header() {
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <div className="px-2 py-1 text-[11px] font-semibold text-muted-foreground uppercase">
-                    Switch Test Persona
+                    Account Mode
                   </div>
-                  <div className="grid grid-cols-2 gap-1 px-1 py-1">
-                    <Button size="sm" variant={user?.role === 'creator' ? 'default' : 'outline'} className="h-7 text-xs" onClick={() => loginAs('creator')}>
-                      Creator
+                  <div className="grid grid-cols-3 gap-1 px-1 py-1">
+                    <Button size="sm" variant={user?.role === 'creator' ? 'default' : 'outline'} className="h-7 text-[11px] px-1" onClick={() => loginAs('creator')}>
+                      Creator ★
                     </Button>
-                    <Button size="sm" variant={user?.role === 'business' ? 'default' : 'outline'} className="h-7 text-xs" onClick={() => loginAs('business')}>
-                      Business
+                    <Button size="sm" variant={user?.role === 'viewer' ? 'default' : 'outline'} className="h-7 text-[11px] px-1" onClick={() => loginAs('viewer')}>
+                      Watcher
+                    </Button>
+                    <Button size="sm" variant={user?.role === 'business' ? 'default' : 'outline'} className="h-7 text-[11px] px-1" onClick={() => loginAs('business')}>
+                      Studio
                     </Button>
                   </div>
                   <DropdownMenuSeparator />
@@ -314,14 +319,17 @@ export function Header() {
             </>
           ) : (
             <div className="flex items-center space-x-2">
-              <Button variant="outline" size="sm" onClick={loginWithGoogle} className="h-8 text-xs">
+              <Button variant="outline" size="sm" onClick={() => setIsAuthModalOpen(true)} className="h-8 text-xs">
                 Log In
               </Button>
-              <Button size="sm" onClick={loginWithGoogle} className="h-8 text-xs bg-primary text-primary-foreground">
+              <Button size="sm" onClick={() => setIsAuthModalOpen(true)} className="h-8 text-xs bg-primary text-primary-foreground font-bold shadow-sm">
                 Join WayaCreate
               </Button>
             </div>
           )}
+
+          {/* Auth Modal */}
+          <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
 
           {/* Mobile menu trigger */}
           <Button

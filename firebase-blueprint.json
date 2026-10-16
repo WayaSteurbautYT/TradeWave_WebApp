@@ -1,0 +1,356 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile with role distinction (free watcher/explorer vs paid earning creator), credit balance, earned balance, socials, and skills.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique user identifier matching auth UID",
+          "maxLength": 128
+        },
+        "email": {
+          "type": "string",
+          "description": "User email address",
+          "maxLength": 256
+        },
+        "display_name": {
+          "type": "string",
+          "description": "Display name of the user or creator",
+          "maxLength": 100
+        },
+        "role": {
+          "type": "string",
+          "description": "User role: user (free watcher/buyer) or creator (can earn, upload, monetize)",
+          "enum": ["user", "creator", "business", "admin"]
+        },
+        "bio": {
+          "type": "string",
+          "description": "User biography or creator summary",
+          "maxLength": 1000
+        },
+        "avatar_url": {
+          "type": "string",
+          "description": "Profile picture URL",
+          "maxLength": 1024
+        },
+        "cover_image_url": {
+          "type": "string",
+          "description": "Profile banner header URL",
+          "maxLength": 1024
+        },
+        "location": {
+          "type": "string",
+          "description": "Location or country",
+          "maxLength": 100
+        },
+        "website": {
+          "type": "string",
+          "description": "Portfolio or personal website",
+          "maxLength": 512
+        },
+        "youtube_url": {
+          "type": "string",
+          "description": "Linked YouTube channel URL",
+          "maxLength": 512
+        },
+        "discord_tag": {
+          "type": "string",
+          "description": "Linked Discord username or tag",
+          "maxLength": 100
+        },
+        "github_handle": {
+          "type": "string",
+          "description": "Linked GitHub handle",
+          "maxLength": 100
+        },
+        "token_balance": {
+          "type": "number",
+          "description": "Spendable credits balance (from faucet, packages, or trades)"
+        },
+        "earned_balance": {
+          "type": "number",
+          "description": "Withdrawable earnings (only creators can accumulate this from paid supporters)"
+        },
+        "can_earn": {
+          "type": "boolean",
+          "description": "Whether this user is a creator permitted to earn withdrawable revenue"
+        },
+        "is_verified": {
+          "type": "boolean",
+          "description": "Verified status badge"
+        },
+        "created_at": {
+          "type": "string",
+          "description": "Account registration timestamp",
+          "maxLength": 64
+        },
+        "updated_at": {
+          "type": "string",
+          "description": "Last profile update timestamp",
+          "maxLength": 64
+        }
+      },
+      "required": ["id", "email", "display_name", "role", "token_balance"]
+    },
+    "VideoUpload": {
+      "title": "VideoUpload",
+      "description": "Uploaded videos, stream recordings, security scan results, copyright status, and AI content declaration tags.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique video ID",
+          "maxLength": 128
+        },
+        "creator_id": {
+          "type": "string",
+          "description": "Author user ID",
+          "maxLength": 128
+        },
+        "creator_name": {
+          "type": "string",
+          "description": "Creator display name",
+          "maxLength": 100
+        },
+        "title": {
+          "type": "string",
+          "description": "Video or stream title",
+          "maxLength": 200
+        },
+        "description": {
+          "type": "string",
+          "description": "Video overview and notes",
+          "maxLength": 2000
+        },
+        "video_url": {
+          "type": "string",
+          "description": "Video playback or stream URL",
+          "maxLength": 1024
+        },
+        "thumbnail_url": {
+          "type": "string",
+          "description": "Video thumbnail cover URL",
+          "maxLength": 1024
+        },
+        "duration": {
+          "type": "string",
+          "description": "Video runtime duration",
+          "maxLength": 32
+        },
+        "is_live": {
+          "type": "boolean",
+          "description": "Live streaming status"
+        },
+        "ai_generated": {
+          "type": "boolean",
+          "description": "Whether the content uses generative AI"
+        },
+        "ai_tags": {
+          "type": "string",
+          "description": "Comma-separated AI tags or disclosures",
+          "maxLength": 500
+        },
+        "copyright_status": {
+          "type": "string",
+          "description": "Copyright scan status: clean, flagged, or verified",
+          "enum": ["clean", "flagged", "verified", "pending"]
+        },
+        "sha256_hash": {
+          "type": "string",
+          "description": "Cryptographic file integrity hash",
+          "maxLength": 128
+        },
+        "rights_for_sale": {
+          "type": "boolean",
+          "description": "Whether rights to this asset/video can be purchased or traded"
+        },
+        "rights_price_credits": {
+          "type": "number",
+          "description": "Credits price for acquiring commercial or resale rights"
+        },
+        "views_count": {
+          "type": "number",
+          "description": "Total view count"
+        },
+        "created_at": {
+          "type": "string",
+          "description": "Upload timestamp",
+          "maxLength": 64
+        }
+      },
+      "required": ["id", "creator_id", "title", "copyright_status"]
+    },
+    "MarketplaceRight": {
+      "title": "MarketplaceRight",
+      "description": "Content rights tradeable between users and creators with escrow security.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Rights agreement ID",
+          "maxLength": 128
+        },
+        "asset_id": {
+          "type": "string",
+          "description": "Associated asset or video ID",
+          "maxLength": 128
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the asset or content right",
+          "maxLength": 200
+        },
+        "seller_id": {
+          "type": "string",
+          "description": "Original seller or creator ID",
+          "maxLength": 128
+        },
+        "seller_name": {
+          "type": "string",
+          "description": "Seller display name",
+          "maxLength": 100
+        },
+        "current_owner_id": {
+          "type": "string",
+          "description": "Current owner of the license or rights",
+          "maxLength": 128
+        },
+        "price_credits": {
+          "type": "number",
+          "description": "Trading or purchase price in Waya credits"
+        },
+        "rights_type": {
+          "type": "string",
+          "description": "Rights license type: full_commercial, non_exclusive, or resellable",
+          "enum": ["full_commercial", "non_exclusive", "resellable"]
+        },
+        "status": {
+          "type": "string",
+          "description": "Market listing status: listed, sold, or in_escrow",
+          "enum": ["listed", "sold", "in_escrow"]
+        },
+        "created_at": {
+          "type": "string",
+          "description": "Creation timestamp",
+          "maxLength": 64
+        }
+      },
+      "required": ["id", "asset_id", "title", "seller_id", "current_owner_id", "price_credits", "status"]
+    },
+    "TokenTransaction": {
+      "title": "TokenTransaction",
+      "description": "Transaction ledger entry for token purchases, rights trades, tips, and payouts.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique transaction ID",
+          "maxLength": 128
+        },
+        "user_id": {
+          "type": "string",
+          "description": "Transacting user ID",
+          "maxLength": 128
+        },
+        "transaction_type": {
+          "type": "string",
+          "description": "Category of transaction",
+          "enum": ["purchase", "faucet", "rights_trade", "tip", "creator_earning", "withdrawal"]
+        },
+        "amount": {
+          "type": "number",
+          "description": "Credit amount transacted"
+        },
+        "usd_amount": {
+          "type": "number",
+          "description": "Corresponding USD fiat amount if applicable"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description",
+          "maxLength": 500
+        },
+        "status": {
+          "type": "string",
+          "description": "Transaction status",
+          "enum": ["completed", "pending", "failed"]
+        },
+        "created_at": {
+          "type": "string",
+          "description": "Transaction timestamp",
+          "maxLength": 64
+        }
+      },
+      "required": ["id", "user_id", "transaction_type", "amount", "status"]
+    },
+    "YouTubeChannelSync": {
+      "title": "YouTubeChannelSync",
+      "description": "Cached and synced YouTube channel metrics, metadata, and connected channels.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Channel handle or ID",
+          "maxLength": 128
+        },
+        "handle": {
+          "type": "string",
+          "description": "Channel handle (e.g. @wayacreate)",
+          "maxLength": 100
+        },
+        "title": {
+          "type": "string",
+          "description": "Channel name",
+          "maxLength": 200
+        },
+        "description": {
+          "type": "string",
+          "description": "Channel description",
+          "maxLength": 2000
+        },
+        "subscriber_count": {
+          "type": "number",
+          "description": "Subscriber count"
+        },
+        "total_views": {
+          "type": "number",
+          "description": "Total lifetime views"
+        },
+        "video_count": {
+          "type": "number",
+          "description": "Published video count"
+        },
+        "synced_at": {
+          "type": "string",
+          "description": "Last synced timestamp",
+          "maxLength": 64
+        }
+      },
+      "required": ["id", "handle", "title"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User profiles, roles (free watcher vs earning creator), credit balances, and social links."
+    },
+    "/videos/{videoId}": {
+      "schema": { "$ref": "#/entities/VideoUpload" },
+      "description": "Uploaded creator videos, livestream recordings, copyright and SHA-256 verification, and AI tags."
+    },
+    "/marketplace_rights/{rightId}": {
+      "schema": { "$ref": "#/entities/MarketplaceRight" },
+      "description": "Tradeable digital asset rights, licenses, and ownership records."
+    },
+    "/transactions/{transactionId}": {
+      "schema": { "$ref": "#/entities/TokenTransaction" },
+      "description": "User credit transaction ledger records and escrow history."
+    },
+    "/youtube_channels/{channelId}": {
+      "schema": { "$ref": "#/entities/YouTubeChannelSync" },
+      "description": "Synced YouTube channel metrics and video metadata."
+    }
+  }
+}

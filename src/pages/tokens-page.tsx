@@ -261,6 +261,109 @@ export function TokensPage() {
         </div>
       </div>
 
+      {/* Monthly Creator Subscriptions (Stripe Billing) */}
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-xl font-bold flex items-center gap-2">
+            <Zap className="h-5 w-5 text-amber-500" />
+            Monthly Creator Subscriptions &amp; Member Passes
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Recurring Stripe billing for priority AI studio queue, 0% marketplace commission, and monthly bonus token allowances.
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-4">
+          <Card className="border-border bg-card p-5 space-y-4">
+            <div className="flex justify-between items-start">
+              <div>
+                <Badge className="bg-primary/20 text-primary border-primary/30 text-[10px] mb-1">
+                  Most Popular
+                </Badge>
+                <h3 className="font-bold text-base">Pro Creator Pass</h3>
+                <p className="text-xs text-muted-foreground">For active 3D artists, modders, and tutorial makers</p>
+              </div>
+              <div className="text-right">
+                <span className="text-2xl font-black text-foreground">$9.99</span>
+                <span className="text-xs text-muted-foreground">/mo</span>
+              </div>
+            </div>
+
+            <div className="space-y-2 text-xs">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                <span><strong>+300 Monthly Credits</strong> deposited on billing cycle</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                <span>Reduced marketplace seller fee: <strong>2.5%</strong> (down from 5%)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                <span>Priority AI Skill Audits &amp; Verified Gold Badge</span>
+              </div>
+            </div>
+
+            <Button
+              onClick={() => handleOpenPurchase({
+                id: 'sub_pro',
+                name: 'Pro Creator Subscription',
+                credits: 300,
+                bonus_credits: 50,
+                price_usd: 9.99
+              })}
+              className="w-full text-xs font-bold bg-primary text-primary-foreground"
+            >
+              Subscribe with Stripe ($9.99/mo)
+            </Button>
+          </Card>
+
+          <Card className="border-border bg-card p-5 space-y-4 border-purple-500/30">
+            <div className="flex justify-between items-start">
+              <div>
+                <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30 text-[10px] mb-1">
+                  Studio Edition
+                </Badge>
+                <h3 className="font-bold text-base">Studio Pro Enterprise</h3>
+                <p className="text-xs text-muted-foreground">For game studios, guilds, and live streaming agencies</p>
+              </div>
+              <div className="text-right">
+                <span className="text-2xl font-black text-foreground">$29.99</span>
+                <span className="text-xs text-muted-foreground">/mo</span>
+              </div>
+            </div>
+
+            <div className="space-y-2 text-xs">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                <span><strong>+1,200 Monthly Credits</strong> deposited automatically</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                <span><strong>0% Marketplace Fee</strong> on all digital asset &amp; service sales</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                <span>Unlimited OBS RTMP stream archival &amp; Verified Studio Badge</span>
+              </div>
+            </div>
+
+            <Button
+              onClick={() => handleOpenPurchase({
+                id: 'sub_studio',
+                name: 'Studio Pro Enterprise Subscription',
+                credits: 1200,
+                bonus_credits: 300,
+                price_usd: 29.99
+              })}
+              className="w-full text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white"
+            >
+              Subscribe Studio ($29.99/mo)
+            </Button>
+          </Card>
+        </div>
+      </div>
+
       {/* Transaction History Ledger */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">

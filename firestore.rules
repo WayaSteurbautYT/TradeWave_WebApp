@@ -1,0 +1,137 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default Deny Catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Hardened Global Helpers
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Helper: Valid User Profile
+    function isValidUserProfile(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.email is string && data.email.size() <= 256 &&
+             data.display_name is string && data.display_name.size() <= 100 &&
+             data.role in ['user', 'creator', 'business', 'admin'] &&
+             data.token_balance is number && data.token_balance >= 0;
+    }
+
+    // Users Collection
+    match /users/{userId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn() && resource.data.id == request.auth.uid;
+      allow create: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       isValidUserProfile(incoming()) &&
+                       incoming().id == request.auth.uid;
+      allow update: if isOwner(userId) &&
+                       isValidUserProfile(incoming()) &&
+                       incoming().id == existing().id &&
+                       // Prevent self-escalating role from user to admin
+                       (incoming().role == existing().role || (existing().role == 'user' && incoming().role == 'creator'));
+      allow delete: if false;
+    }
+
+    // Helper: Valid Video Upload
+    function isValidVideoUpload(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.creator_id is string && data.creator_id.size() <= 128 &&
+             data.title is string && data.title.size() <= 200 &&
+             data.copyright_status in ['clean', 'flagged', 'verified', 'pending'];
+    }
+
+    // Videos Collection
+    match /videos/{videoId} {
+      allow read: if true; // Public catalog of tutorials and streams
+      allow create: if isSignedIn() &&
+                       isValidId(videoId) &&
+                       isValidVideoUpload(incoming()) &&
+                       incoming().creator_id == request.auth.uid;
+      allow update: if isSignedIn() &&
+                       isValidVideoUpload(incoming()) &&
+                       incoming().creator_id == existing().creator_id &&
+                       (
+                         // Author can update metadata, tags, rights pricing
+                         incoming().creator_id == request.auth.uid ||
+                         // Any user can increment view count
+                         incoming().diff(existing()).affectedKeys().hasOnly(['views_count'])
+                       );
+      allow delete: if isSignedIn() && existing().creator_id == request.auth.uid;
+    }
+
+    // Helper: Valid Marketplace Right
+    function isValidMarketplaceRight(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.asset_id is string && data.asset_id.size() <= 128 &&
+             data.title is string && data.title.size() <= 200 &&
+             data.price_credits is number && data.price_credits >= 0 &&
+             data.status in ['listed', 'sold', 'in_escrow'];
+    }
+
+    // Marketplace Rights Collection
+    match /marketplace_rights/{rightId} {
+      allow read: if true; // Public marketplace for discovery
+      allow create: if isSignedIn() &&
+                       isValidId(rightId) &&
+                       isValidMarketplaceRight(incoming()) &&
+                       incoming().seller_id == request.auth.uid;
+      allow update: if isSignedIn() &&
+                       isValidMarketplaceRight(incoming()) &&
+                       (
+                         // Owner can update price/status
+                         existing().current_owner_id == request.auth.uid ||
+                         // Buyer can acquire via escrow trade
+                         (existing().status == 'listed' && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'current_owner_id']))
+                       );
+      allow delete: if isSignedIn() && existing().seller_id == request.auth.uid;
+    }
+
+    // Helper: Valid Token Transaction
+    function isValidTokenTransaction(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.user_id is string && data.user_id.size() <= 128 &&
+             data.amount is number &&
+             data.transaction_type in ['purchase', 'faucet', 'rights_trade', 'tip', 'creator_earning', 'withdrawal'] &&
+             data.status in ['completed', 'pending', 'failed'];
+    }
+
+    // Transactions Collection
+    match /transactions/{transactionId} {
+      allow get: if isSignedIn() && resource.data.user_id == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.user_id == request.auth.uid;
+      allow create: if isSignedIn() &&
+                       isValidId(transactionId) &&
+                       isValidTokenTransaction(incoming()) &&
+                       incoming().user_id == request.auth.uid;
+      allow update: if false; // Immutable ledger
+      allow delete: if false;
+    }
+
+    // YouTube Channels Collection (Synced cache)
+    match /youtube_channels/{channelId} {
+      allow read: if true;
+      allow create, update: if isSignedIn() && isValidId(channelId);
+      allow delete: if false;
+    }
+  }
+}

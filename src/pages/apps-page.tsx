@@ -73,7 +73,7 @@ export function AppsPage() {
       showToast({
         title: "Install WayaCreate",
         description: "Click the install icon in your browser address bar (Desktop) or 'Add to Home Screen' (Mobile Safari/Chrome).",
-        variant: "info"
+        variant: "default"
       })
     }
   }
@@ -97,7 +97,7 @@ export function AppsPage() {
     showToast({
       title: next ? "Steam Deck / Couch Mode Activated" : "Standard Mouse & Touch Mode",
       description: next ? "Optimized with high-contrast borders and controller-friendly focus targets." : "Reverted to desktop UI scale.",
-      variant: "info"
+      variant: "default"
     })
   }
 

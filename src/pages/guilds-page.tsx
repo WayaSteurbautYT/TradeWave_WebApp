@@ -10,6 +10,9 @@ import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { showToast } from "@/components/ui/toaster"
+import { soundFX } from "@/lib/soundEffects"
+import { IdGenerator } from "@/lib/idGenerator"
+import confetti from "canvas-confetti"
 import { 
   Shield, 
   Users, 
@@ -35,8 +38,10 @@ export function GuildsPage() {
     const success = MockStore.joinGuild(guildId)
     if (success) {
       setGuilds(MockStore.getGuilds())
+      soundFX.playFanfare()
+      confetti({ particleCount: 35, spread: 60 })
       showToast({
-        title: "Joined Guild!",
+        title: "Joined Guild! 🛡️",
         description: "You are now an active member of the creator guild.",
         variant: "success"
       })
@@ -45,6 +50,7 @@ export function GuildsPage() {
 
   const handleCreateGuild = () => {
     if (!newGuildName.trim() || !newGuildDesc.trim()) {
+      soundFX.playClick()
       showToast({
         title: "Required Fields",
         description: "Please provide a guild name and description.",
@@ -53,12 +59,14 @@ export function GuildsPage() {
       return
     }
 
+    const scopedGuildId = IdGenerator.guild(user?.id || "usr_waya_001", newGuildName)
+
     const newGuild: Guild = {
-      id: `gld_${Date.now()}`,
+      id: scopedGuildId,
       name: newGuildName,
       description: newGuildDesc,
       logo_url: "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=150&auto=format&fit=crop&q=80",
-      leader_id: user?.id || "usr_guest",
+      leader_id: user?.id || "usr_waya_001",
       specializations: newGuildSpecs.split(",").map(s => s.trim()).filter(Boolean),
       member_count: 1,
       max_members: 50,

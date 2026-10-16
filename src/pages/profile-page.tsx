@@ -35,7 +35,8 @@ import {
   ExternalLink,
   MessageSquare,
   BrainCircuit,
-  Trophy
+  Trophy,
+  Settings
 } from "lucide-react"
 import { Link } from "react-router-dom"
 
@@ -169,12 +170,21 @@ export function ProfilePage() {
                 <Edit className="mr-1.5 h-3.5 w-3.5" />
                 Edit Profile
               </Button>
+              <Link to="/settings">
+                <Button size="sm" variant="outline" className="border-primary/40 text-primary hover:bg-primary/10 font-bold">
+                  <Settings className="mr-1.5 h-3.5 w-3.5" />
+                  Media &amp; Image Settings (2024px / 15MB)
+                </Button>
+              </Link>
             </div>
           </div>
 
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-2xl md:text-3xl font-extrabold">{user?.display_name}</h1>
+              <code className="text-xs font-mono font-bold bg-muted px-2 py-0.5 rounded text-muted-foreground select-all">
+                ID: {user?.id || "usr_waya_001"}
+              </code>
               {user?.is_verified && (
                 <Badge className="bg-blue-500 text-white text-xs">✓ Verified Creator</Badge>
               )}
